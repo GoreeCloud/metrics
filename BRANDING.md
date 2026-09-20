@@ -3,7 +3,7 @@
 ## Product identity
 
 - Product name: **GoreeCloud Metrics**
-- Repository: `GoreeCloud/goreecloud-metrics`
+- Repository: `GoreeCloud/metrics`
 - Product role: first-party GoreeCloud infrastructure resource telemetry and capacity-analysis application.
 
 ## Current asset status
