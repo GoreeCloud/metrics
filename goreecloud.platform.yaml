@@ -4,7 +4,7 @@ component:
   type: application
   id: goreecloud-metrics
   product_name: GoreeCloud Metrics
-  repository: GoreeCloud/goreecloud-metrics
+  repository: GoreeCloud/metrics
 
 lifecycle: development
 version: 0.1.0-dev.2
