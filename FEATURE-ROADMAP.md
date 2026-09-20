@@ -3,7 +3,7 @@
 **Status:** Active roadmap control  
 **As of:** 2026-09-08  
 **Authoritative project record:** Project Specification — Metrics  
-**Canonical repository:** GoreeCloud/goreecloud-metrics
+**Canonical repository:** GoreeCloud/metrics
 **Drive control:** `GoreeCloud/Feature Roadmap/GoreeCloud Metrics/FEATURE-ROADMAP.docx`
 
 ## Purpose
