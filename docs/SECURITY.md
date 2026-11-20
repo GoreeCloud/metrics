@@ -1,0 +1,24 @@
+# GoreeCloud Metrics — Security and Privacy
+
+**Development-stage threat model:** unauthorized disclosure of hostname/resource state, forged samples, credential leakage, public HTTP exposure, resource exhaustion, local host compromise, damaged SQLite data, and unsafe future container socket access.
+
+## Implemented safeguards
+
+- Hub startup requires strong unique agent tokens and an independent 32+ character administrator bearer token. Registered nodes are an explicit allowlist. Non-health API endpoints require authentication.
+- Agent refuses cleartext remote HTTP and relies on OS certificate validation. Local instructions bind the hub to loopback; the optional Compose example also maps only loopback.
+- Pydantic bounds samples and system names. SQLite queries are parameterized, and database history has an ingest-time 30-day retention rule.
+- Application credentials remain in process memory, not persisted in web browser storage or Flutter app storage. Agent error logs omit HTTP URLs and bodies.
+- Host agent has no remote shell, no inbound listener, no privileged container access, and no cloud telemetry.
+
+## Not yet secure for unrestricted deployment
+
+- No users/roles/OIDC/MFA, built-in TLS termination, multi-factor session security, configurable audit log, secret rotation API, at-rest token hashing, brute-force controls, IP-level throttling, or production DDoS protections.
+- Simplified fixed 5-second per-node throttling does not prevent all resource-exhaustion attacks; place behind trusted rate-limited ingress.
+- Threshold alarms are current indicators only and do not send notifications.
+- Purge occurs during ingest. A paused system will retain historical data until next ingest or a manual controlled purge.
+- SQLite backups must be consistent (use online backup API or stop service and preserve DB/WAL/SHM). Encryption, restore tests, migration support and storage corruption handling require validation.
+- Never expose the API directly to the public Internet; use least-privilege accounts, HTTPS, strict firewall rules and private network access. Never mount a Docker socket casually.
+
+## Responsible disclosure
+
+Report security concerns privately using the repository security reporting capability where available. Do not include secrets or production data in public issue reports. No formal security audit or device acceptance is claimed.

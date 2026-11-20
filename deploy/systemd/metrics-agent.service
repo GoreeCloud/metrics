@@ -1,0 +1,25 @@
+[Unit]
+Description=GoreeCloud Metrics low-privilege host agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=metrics
+Group=metrics
+WorkingDirectory=/opt/goreecloud-metrics
+EnvironmentFile=/etc/goreecloud-metrics/agent.env
+ExecStart=/opt/goreecloud-metrics/.venv/bin/python -m agent.agent
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

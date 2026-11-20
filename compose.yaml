@@ -1,0 +1,20 @@
+# Optional fallback when an installed GoreeCloud Containers instance is unverified.
+services:
+  hub:
+    build: .
+    environment:
+      METRICS_ADMIN_TOKEN: ${METRICS_ADMIN_TOKEN:?Provide a strong administrator token}
+      METRICS_AGENT_TOKENS: ${METRICS_AGENT_TOKENS:?Provide agent token JSON}
+      METRICS_DB_PATH: /data/metrics.sqlite3
+    ports:
+      - "127.0.0.1:8093:8093"
+    volumes:
+      - metrics_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+volumes:
+  metrics_data:
