@@ -10,7 +10,7 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 - Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP).
 - Web: React/Vite with Recharts historical charts, systems overview, current indicators, responsive GoreeCloud UI Lagoon candidate styling.
 - Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history chart and current indicators. Tokens held in app memory only.
-- Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests.
+- Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
 **Not implemented:** Docker/Podman container metrics, alert delivery, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, backup/restore validation, production acceptance.
 

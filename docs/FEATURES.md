@@ -8,8 +8,8 @@
 | Online and utilization indicators | Implemented | Alert behavior and timing tests |
 | Authenticated Prometheus text format | Implemented | Downstream integration |
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
-| Flutter Linux client | Implemented | Native desktop build, runtime, installer |
-| Flutter Android client | Implemented | APK build, signing and device test |
+| Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
+| Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
 | Docker and Podman statistics | Not implemented | Least-privilege opt-in design |
 | Notification delivery and alert configuration | Not implemented | Privacy and delivery reviews |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |

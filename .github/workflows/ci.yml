@@ -69,6 +69,12 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-metrics-android-debug
+          path: apps/native/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
   linux:
     name: Native Linux build
     runs-on: ubuntu-latest
@@ -86,3 +92,9 @@ jobs:
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - run: flutter build linux --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-metrics-linux-x64
+          path: apps/native/build/linux/x64/release/bundle/
+          if-no-files-found: error
+          retention-days: 14
