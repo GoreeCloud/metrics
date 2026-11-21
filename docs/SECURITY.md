@@ -8,13 +8,13 @@
 - Agent refuses cleartext remote HTTP and relies on OS certificate validation. Local instructions bind the hub to loopback; the optional Compose example also maps only loopback.
 - Pydantic bounds samples and system names. SQLite queries are parameterized, and database history has an ingest-time 30-day retention rule.
 - Application credentials remain in process memory, not persisted in web browser storage or Flutter app storage. Agent error logs omit HTTP URLs and bodies.
-- Host agent has no remote shell, no inbound listener, no privileged container access, and no cloud telemetry.
+- Host agent has no remote shell, no inbound listener, and no cloud telemetry. Optional Podman/Docker stats are disabled unless explicitly configured; Docker socket access must be separately authorized and can carry root-level risk.
 
 ## Not yet secure for unrestricted deployment
 
 - No users/roles/OIDC/MFA, built-in TLS termination, multi-factor session security, configurable audit log, secret rotation API, at-rest token hashing, brute-force controls, IP-level throttling, or production DDoS protections.
 - Simplified fixed 5-second per-node throttling does not prevent all resource-exhaustion attacks; place behind trusted rate-limited ingress.
-- Threshold alarms are current indicators only and do not send notifications.
+- Default threshold endpoint returns current-state indicators only. An optional separate worker can journal transitions and send HTTPS webhook notifications *only* to an explicitly configured endpoint; apply GoreeShield consent and destination reviews first.
 - Purge occurs during ingest. A paused system will retain historical data until next ingest or a manual controlled purge.
 - SQLite backups must be consistent (use online backup API or stop service and preserve DB/WAL/SHM). Encryption, restore tests, migration support and storage corruption handling require validation.
 - Never expose the API directly to the public Internet; use least-privilege accounts, HTTPS, strict firewall rules and private network access. Never mount a Docker socket casually.

@@ -15,10 +15,20 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
+from server.alert_rules import AlertRules, evaluate
 
 IDENTIFIER = r"^[a-z0-9][a-z0-9-]{0,62}$"
 RETENTION_DAYS = 30
 ONLINE_SECONDS = 120
+
+
+class ContainerSample(BaseModel):
+    name: str = Field(min_length=1, max_length=100,
+                      pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
+    cpu_percent: float = Field(ge=0, le=100)
+    memory_percent: float = Field(ge=0, le=100)
+    rx_bytes: int = Field(ge=0)
+    tx_bytes: int = Field(ge=0)
 
 
 class Sample(BaseModel):
@@ -32,6 +42,7 @@ class Sample(BaseModel):
     rx_bytes: int = Field(ge=0)
     tx_bytes: int = Field(ge=0)
     uptime_seconds: float = Field(ge=0)
+    containers: list[ContainerSample] = Field(default_factory=list, max_length=100)
 
 
 def config() -> tuple[str, dict[str, str]]:
@@ -98,12 +109,23 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS samples_node_time
                 ON samples(node_id, ts DESC);
             CREATE INDEX IF NOT EXISTS samples_time ON samples(ts);
+            CREATE TABLE IF NOT EXISTS container_samples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL REFERENCES systems(node_id) ON DELETE CASCADE,
+                ts INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                cpu REAL NOT NULL, memory REAL NOT NULL,
+                rx_bytes INTEGER NOT NULL, tx_bytes INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS container_samples_node_time
+                ON container_samples(node_id, ts DESC);
         """)
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     admin, agents = config()
+    application.state.alert_rules = AlertRules.from_environment()
     application.state.admin = admin
     application.state.agents = agents
     init_db()
@@ -173,6 +195,16 @@ def ingest(sample: Sample, request: Request, x_agent_token: Annotated[str | None
              sample.disk_percent, sample.memory_used_bytes, sample.disk_used_bytes,
              sample.rx_bytes, sample.tx_bytes, sample.uptime_seconds)
         )
+        for item in sample.containers:
+            connection.execute(
+                """INSERT INTO container_samples
+                (node_id,ts,name,cpu,memory,rx_bytes,tx_bytes)
+                VALUES (?,?,?,?,?,?,?)""",
+                (sample.node_id, now, item.name, item.cpu_percent,
+                 item.memory_percent, item.rx_bytes, item.tx_bytes)
+            )
+        connection.execute("DELETE FROM container_samples WHERE ts < ?",
+                           (now - RETENTION_DAYS * 86400,))
         connection.execute("DELETE FROM samples WHERE ts < ?",
                            (now - RETENTION_DAYS * 86400,))
     return {"accepted": True, "server_ts": now}
@@ -190,7 +222,8 @@ def latest_systems() -> list[dict]:
             ) ORDER BY s.node_id
         """).fetchall()
     now = int(time.time())
-    return [dict(row) | {"online": now - row["last_seen"] <= ONLINE_SECONDS} for row in rows]
+    offline_seconds = AlertRules.from_environment().offline_seconds
+    return [dict(row) | {"online": now - row["last_seen"] <= offline_seconds} for row in rows]
 
 
 @app.get("/api/v1/systems", dependencies=[Depends(require_admin)])
@@ -216,19 +249,46 @@ def history(node_id: str, hours: int = Query(default=24, ge=1, le=168)):
     return {"node_id": node_id, "samples": [dict(v) for v in reversed(rows)]}
 
 
+@app.get("/api/v1/systems/{node_id}/containers",
+         dependencies=[Depends(require_admin)])
+def containers(node_id: str):
+    if not re.fullmatch(IDENTIFIER, node_id):
+        raise HTTPException(404, "Unknown system")
+    with db() as connection:
+        latest = connection.execute(
+            "SELECT ts FROM samples WHERE node_id=? ORDER BY id DESC LIMIT 1",
+            (node_id,)
+        ).fetchone()
+        if latest is None:
+            raise HTTPException(404, "Unknown system")
+        rows = connection.execute(
+            """SELECT name,cpu,memory,rx_bytes,tx_bytes,ts
+            FROM container_samples WHERE node_id=? AND ts=?
+            ORDER BY name LIMIT 100""",
+            (node_id, latest["ts"])
+        ).fetchall()
+    return {"node_id": node_id, "containers": [dict(v) for v in rows]}
+
+
 @app.get("/api/v1/alerts", dependencies=[Depends(require_admin)])
 def alerts():
-    active = []
-    for system in latest_systems():
-        if not system["online"]:
-            active.append({"node_id": system["node_id"], "severity": "critical",
-                           "metric": "heartbeat", "message": "Agent offline"})
-        else:
-            for metric in ("cpu", "memory", "disk"):
-                if system[metric] is not None and system[metric] >= 90:
-                    active.append({"node_id": system["node_id"], "severity": "warning",
-                                   "metric": metric, "message": f"{metric} at or above 90%"})
-    return {"alerts": active, "note": "Current-state threshold indicators; notification delivery not implemented"}
+    active = evaluate(latest_systems(), AlertRules.from_environment())
+    return {"alerts": active, "note": "Current-state indicators; opt-in webhook worker is separate"}
+
+
+@app.get("/api/v1/alert-events", dependencies=[Depends(require_admin)])
+def alert_events(limit: int = Query(default=100, ge=1, le=500)):
+    with db() as connection:
+        available = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='alert_events'"
+        ).fetchone()
+        if not available:
+            return {"events": []}
+        rows = connection.execute(
+            """SELECT id,node_id,metric,state,message,created_ts,sent_ts,attempts
+            FROM alert_events ORDER BY id DESC LIMIT ?""", (limit,)
+        ).fetchall()
+    return {"events": [dict(row) for row in rows]}
 
 
 @app.get("/api/v1/metrics", response_class=PlainTextResponse,

@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 
 import psutil
+from agent.container_stats import collect_containers
 
 _STOP = False
 
@@ -47,7 +48,7 @@ def collect(node_id: str):
     disk = psutil.disk_usage(os.environ.get("METRICS_DISK_PATH", "/"))
     network = psutil.net_io_counters()
     memory = psutil.virtual_memory()
-    return {
+    result = {
         "node_id": node_id,
         "hostname": socket.gethostname()[:128],
         "cpu_percent": psutil.cpu_percent(interval=0.5),
@@ -59,6 +60,12 @@ def collect(node_id: str):
         "tx_bytes": network.bytes_sent,
         "uptime_seconds": max(0, time.time() - psutil.boot_time()),
     }
+    try:
+        result["containers"] = collect_containers()
+    except (OSError, ValueError, TimeoutError) as exc:
+        # Container collection is opt-in and must never block host telemetry.
+        print(f"Container stats unavailable ({type(exc).__name__})", file=sys.stderr)
+    return result
 
 
 def report(hub: str, token: str, sample: dict):
