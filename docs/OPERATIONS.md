@@ -52,3 +52,7 @@ If a CI job or build fails, investigate before any release. Confirm production d
 ## Recovery and retention
 
 A consistent SQLite backup requires using SQLite's online backup API or stopping the service and taking a snapshot of the database with its WAL/SHM. Restore onto a separate authorized test path and validate the schema and sample queries before trusting a backup. No automated backups, schema migrations or restored deployment have been tested by this preview. The 30-day data purge occurs on ingestion only; configure an approved privacy-aware scheduled purge if needed later.
+
+## Alerts and notifications
+
+See [alert rules and opt-in worker](ALERTS.md). The notifier is an operator-managed process and is disabled unless started. The sample \`deploy/systemd/metrics-notifier.service\` requires an authorized non-root metrics account, an existing owner-controlled hub environment file and matching writable SQLite storage. Enabling outbound webhook delivery is an additional explicit security/privacy decision; it is not a verified GoreeCloud Notify integration.
