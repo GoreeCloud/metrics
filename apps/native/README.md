@@ -1,6 +1,6 @@
 # Native GoreeCloud Metrics
 
-Flutter app with **real Linux desktop** and **Android** targets, sharing application code under `lib/` and retaining generated native runners under `linux/` and `android/`. The application reads authenticated hub snapshots, per-host CPU history and current threshold indicators.
+Flutter app with **real Linux desktop** and **Android** targets, sharing application code under `lib/` and retaining generated native runners under `linux/` and `android/`. The application reads authenticated hub snapshots, per-host CPU history, current threshold indicators, read-only container snapshots and recent alert transitions. The latter two panels require the optional backend agent/worker and their APIs.
 
 This is an early developer preview, not a signed or device-validated release. Requires Flutter SDK, compatible Android SDK/JDK or Linux desktop development libraries.
 
