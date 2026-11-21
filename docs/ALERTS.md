@@ -20,3 +20,17 @@ python -m server.notifications --once
 A webhook may disclose a node ID and active threshold to its recipient. **GoreeShield consent and destination privacy review are required before enabling one.** Requests use POST JSON, reject redirects, a bounded timeout, up to five retry attempts and a bounded exponential delay. Event delivery is at least once; duplicates can occur after a crash. The worker records up to 30 days of transitions. Actual integration with GoreeCloud Notify has *not* been verified.
 
 Current limitations: no graphical threshold editor, incident acknowledgment, rule quiet hours, alert suppression, notification history UI or multiuser Identity auth. The worker is not automatically installed, deployed or running.
+
+## GoreeCloud Notify direct-publish adapter (optional)
+
+An independent adapter maps alert transitions to the **currently verified GoreeCloud Notify topic-publish contract** in `GoreeCloud/notify` (Go service at `POST /api/v1/topics/{topic}/messages`). It sends only `title`, `body`, and `priority` as JSON with a separately provided bearer token.
+
+For an authorized HTTPS deployment, set the following *privately* on the Metrics notifier worker:
+
+~~~sh
+METRICS_NOTIFY_BASE_URL=https://your-trusted-notify-origin.example
+METRICS_NOTIFY_TOPIC=metrics
+METRICS_NOTIFY_API_TOKEN=PASTE_NOTIFY_TOKEN_LOCALLY
+~~~
+
+The adapter refuses cleartext URLs and will reject simultaneous configuration of the generic webhook and GoreeCloud Notify. No token is stored in source. The Notify server is **not** deployed or probed automatically, and no real message delivery has been tested. GoreeShield authorization for disclosing host alert names to Notify is required. Notifications should not be treated as emergency-alert infrastructure.
