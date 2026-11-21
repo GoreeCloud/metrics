@@ -7,9 +7,9 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 ## Source capabilities
 
 - Hub: authenticated per-agent ingest, strict validation, SQLite 30-day history, basic 5-second per-node throttle, online/offline status and threshold indicators, historical reads, authenticated Prometheus-format endpoint, minimal health probe.
-- Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP). Experimental rootless Podman or explicitly approved Docker container snapshots are disabled by default.
-- Web: React/Vite with Recharts historical charts, systems overview, current indicators, responsive GoreeCloud UI Lagoon candidate styling.
-- Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history chart and current indicators. Tokens held in app memory only.
+- Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP). Experimental rootless Podman or explicitly approved Docker container snapshots disabled by default.
+- Web: React/Vite with Recharts historical charts, current indicators, optional container snapshot tables and alert-transition history, and responsive GoreeCloud UI Lagoon source tokens.
+- Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history, optional container snapshots, alert-transition history and current indicators. Tokens held in app memory only.
 - Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
 **Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, production backup/restore acceptance or production deployment.

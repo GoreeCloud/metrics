@@ -52,6 +52,7 @@ class _MetricsHomeState extends State<MetricsHome> {
   String? hub, token, message, selected;
   bool busy = false;
   List<Map<String, dynamic>> machines = [], alerts = [], samples = [];
+  List<Map<String, dynamic>> containers = [], alertEvents = [];
   Timer? timer;
 
   @override
@@ -126,7 +127,7 @@ class _MetricsHomeState extends State<MetricsHome> {
             : (next.isEmpty ? null : next.first['node_id'] as String);
         message = null;
       });
-      await loadHistory();
+      await Future.wait([loadHistory(), loadContainers(), loadAlertEvents()]);
     } catch (_) {
       if (mounted) {
         setState(() => message =
@@ -154,6 +155,32 @@ class _MetricsHomeState extends State<MetricsHome> {
     }
   }
 
+  Future<void> loadContainers() async {
+    final id = selected;
+    if (id == null) {
+      if (mounted) setState(() => containers = []);
+      return;
+    }
+    try {
+      final response = await getData(
+          '/api/v1/systems/${Uri.encodeComponent(id)}/containers');
+      if (mounted && selected == id) {
+        setState(() => containers = objects(response['containers']));
+      }
+    } catch (_) {
+      if (mounted && selected == id) setState(() => containers = []);
+    }
+  }
+
+  Future<void> loadAlertEvents() async {
+    try {
+      final response = await getData('/api/v1/alert-events?limit=30');
+      if (mounted) setState(() => alertEvents = objects(response['events']));
+    } catch (_) {
+      if (mounted) setState(() => alertEvents = []);
+    }
+  }
+
   void disconnect() {
     timer?.cancel();
     setState(() {
@@ -163,6 +190,8 @@ class _MetricsHomeState extends State<MetricsHome> {
       machines = [];
       alerts = [];
       samples = [];
+      containers = [];
+      alertEvents = [];
       message = null;
       tokenField.clear();
     });
@@ -292,6 +321,7 @@ class _MetricsHomeState extends State<MetricsHome> {
               onTap: () {
                 setState(() => selected = m['node_id'] as String);
                 loadHistory();
+                loadContainers();
               },
             ))),
         if (current != null) ...[
@@ -318,6 +348,26 @@ class _MetricsHomeState extends State<MetricsHome> {
                     const Text('CPU utilization history · 0–100%',
                         style: TextStyle(fontSize: 12)),
                   ]))),
+          const SizedBox(height: 22),
+          Text('Container snapshots',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          if (containers.isEmpty)
+            const Card(
+                child: ListTile(
+              leading: Icon(Icons.view_in_ar_outlined),
+              title: Text('Container telemetry is optional'),
+              subtitle: Text(
+                  'Enable a supported Podman/Docker collector on the host to view snapshots.'),
+            )),
+          ...containers.map((c) => Card(
+                  child: ListTile(
+                leading: const Icon(Icons.widgets_outlined),
+                title: Text((c['name'] ?? '').toString()),
+                subtitle:
+                    Text('Memory: ${number(c, 'memory').toStringAsFixed(1)}%'),
+                trailing: Text('CPU ${number(c, 'cpu').toStringAsFixed(1)}%'),
+              ))),
         ],
         const SizedBox(height: 22),
         Text('Current indicators',
@@ -327,7 +377,8 @@ class _MetricsHomeState extends State<MetricsHome> {
               child: ListTile(
             leading: Icon(Icons.verified_user_outlined),
             title: Text('No current alerts'),
-            subtitle: Text('Threshold: 90% · Offline: 120 seconds'),
+            subtitle:
+                Text('Hub-configurable thresholds · Default 90% / 120 seconds'),
           )),
         ...alerts.map((a) => Card(
                 child: ListTile(
@@ -336,8 +387,28 @@ class _MetricsHomeState extends State<MetricsHome> {
               subtitle: Text((a['message'] ?? '').toString()),
             ))),
         const SizedBox(height: 22),
+        Text('Recent alert transitions',
+            style: Theme.of(context).textTheme.titleLarge),
+        if (alertEvents.isEmpty)
+          const Card(
+              child: ListTile(
+            title: Text('No recorded transitions'),
+            subtitle:
+                Text('The optional alert worker must run to journal events.'),
+          )),
+        ...alertEvents.map((event) => Card(
+                child: ListTile(
+              leading: Icon(event['state'] == 'resolved'
+                  ? Icons.check_circle_outline
+                  : Icons.warning_amber_outlined),
+              title:
+                  Text('${event['node_id'] ?? ''} · ${event['metric'] ?? ''}'),
+              subtitle: Text((event['message'] ?? '').toString()),
+              trailing: Text((event['state'] ?? '').toString()),
+            ))),
+        const SizedBox(height: 22),
         const Text(
-            'Development preview · Alert notifications not yet implemented',
+            'Development preview · External notification delivery is opt-in',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12)),
       ]),
