@@ -22,6 +22,15 @@ RETENTION_DAYS = 30
 ONLINE_SECONDS = 120
 
 
+class ContainerSample(BaseModel):
+    name: str = Field(min_length=1, max_length=100,
+                      pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
+    cpu_percent: float = Field(ge=0, le=100)
+    memory_percent: float = Field(ge=0, le=100)
+    rx_bytes: int = Field(ge=0)
+    tx_bytes: int = Field(ge=0)
+
+
 class Sample(BaseModel):
     node_id: str = Field(min_length=1, max_length=63, pattern=IDENTIFIER)
     hostname: str = Field(min_length=1, max_length=128)
@@ -33,6 +42,7 @@ class Sample(BaseModel):
     rx_bytes: int = Field(ge=0)
     tx_bytes: int = Field(ge=0)
     uptime_seconds: float = Field(ge=0)
+    containers: list[ContainerSample] = Field(default_factory=list, max_length=100)
 
 
 def config() -> tuple[str, dict[str, str]]:
@@ -99,6 +109,16 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS samples_node_time
                 ON samples(node_id, ts DESC);
             CREATE INDEX IF NOT EXISTS samples_time ON samples(ts);
+            CREATE TABLE IF NOT EXISTS container_samples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL REFERENCES systems(node_id) ON DELETE CASCADE,
+                ts INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                cpu REAL NOT NULL, memory REAL NOT NULL,
+                rx_bytes INTEGER NOT NULL, tx_bytes INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS container_samples_node_time
+                ON container_samples(node_id, ts DESC);
         """)
 
 
@@ -175,6 +195,16 @@ def ingest(sample: Sample, request: Request, x_agent_token: Annotated[str | None
              sample.disk_percent, sample.memory_used_bytes, sample.disk_used_bytes,
              sample.rx_bytes, sample.tx_bytes, sample.uptime_seconds)
         )
+        for item in sample.containers:
+            connection.execute(
+                """INSERT INTO container_samples
+                (node_id,ts,name,cpu,memory,rx_bytes,tx_bytes)
+                VALUES (?,?,?,?,?,?,?)""",
+                (sample.node_id, now, item.name, item.cpu_percent,
+                 item.memory_percent, item.rx_bytes, item.tx_bytes)
+            )
+        connection.execute("DELETE FROM container_samples WHERE ts < ?",
+                           (now - RETENTION_DAYS * 86400,))
         connection.execute("DELETE FROM samples WHERE ts < ?",
                            (now - RETENTION_DAYS * 86400,))
     return {"accepted": True, "server_ts": now}
@@ -217,6 +247,27 @@ def history(node_id: str, hours: int = Query(default=24, ge=1, le=168)):
             ORDER BY ts DESC LIMIT 5000
         """, (node_id, int(time.time()) - hours * 3600)).fetchall()
     return {"node_id": node_id, "samples": [dict(v) for v in reversed(rows)]}
+
+
+@app.get("/api/v1/systems/{node_id}/containers",
+         dependencies=[Depends(require_admin)])
+def containers(node_id: str):
+    if not re.fullmatch(IDENTIFIER, node_id):
+        raise HTTPException(404, "Unknown system")
+    with db() as connection:
+        latest = connection.execute(
+            "SELECT ts FROM samples WHERE node_id=? ORDER BY id DESC LIMIT 1",
+            (node_id,)
+        ).fetchone()
+        if latest is None:
+            raise HTTPException(404, "Unknown system")
+        rows = connection.execute(
+            """SELECT name,cpu,memory,rx_bytes,tx_bytes,ts
+            FROM container_samples WHERE node_id=? AND ts=?
+            ORDER BY name LIMIT 100""",
+            (node_id, latest["ts"])
+        ).fetchall()
+    return {"node_id": node_id, "containers": [dict(v) for v in rows]}
 
 
 @app.get("/api/v1/alerts", dependencies=[Depends(require_admin)])

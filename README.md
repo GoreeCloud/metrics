@@ -7,12 +7,12 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 ## Source capabilities
 
 - Hub: authenticated per-agent ingest, strict validation, SQLite 30-day history, basic 5-second per-node throttle, online/offline status and threshold indicators, historical reads, authenticated Prometheus-format endpoint, minimal health probe.
-- Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP).
+- Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP). Experimental rootless Podman or explicitly approved Docker container snapshots are disabled by default.
 - Web: React/Vite with Recharts historical charts, systems overview, current indicators, responsive GoreeCloud UI Lagoon candidate styling.
 - Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history chart and current indicators. Tokens held in app memory only.
 - Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
-**Not implemented:** Docker/Podman container metrics, in-app alert settings or native push delivery, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, backup/restore validation, production acceptance.
+**Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, production backup/restore acceptance or production deployment.
 
 ## Local development setup
 
@@ -67,11 +67,15 @@ A generated native runner does not prove hardware acceptance. On physical Androi
 
 ## Consistent SQLite backup and recovery rehearsal
 
-The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, owner-only consistent live snapshots, non-overwriting restore rehearsals and dry-run-first retention. See [storage recovery](docs/STORAGE_RECOVERY.md).
+The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, consistent owner-only live snapshots, non-overwriting restore rehearsals and dry-run-first retention. See [storage recovery](docs/STORAGE_RECOVERY.md).
+
+## Container telemetry (opt-in)
+
+Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent for read-only snapshots; Docker socket access may convey host-root authority and is never enabled automatically. The authenticated `/api/v1/systems/{node_id}/containers` endpoint exposes bounded telemetry. See [container telemetry](docs/CONTAINER_TELEMETRY.md).
 
 ## Alert rules and opt-in webhook worker
 
-`METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` control current-state thresholds. The separate `python -m server.notifications` process records deduplicated firing/resolved transitions in SQLite and can deliver optional HTTPS webhook events; none are configured or deployed by default. See [alert operations](docs/ALERTS.md). This is not a verified GoreeCloud Notify integration.
+`METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` control indicators. A separate `python -m server.notifications` process can record firing/resolved transitions and optionally send HTTPS webhooks. No delivery is configured or deployed by default; this is not a verified GoreeCloud Notify runtime integration. See [alert operations](docs/ALERTS.md).
 
 ## API
 
@@ -81,6 +85,7 @@ The development-only `python -m server.storage_cli` utility provides read-only d
 | POST | /api/v1/ingest | X-Agent-Token of registered node |
 | GET | /api/v1/systems | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/history?hours=24 | Admin Bearer token |
+| GET | /api/v1/systems/{node_id}/containers | Admin Bearer token |
 | GET | /api/v1/alerts | Admin Bearer token |
 | GET | /api/v1/alert-events | Admin Bearer token; journal populated only by worker |
 | GET | /api/v1/metrics | Admin Bearer token, Prometheus text |

@@ -11,8 +11,9 @@
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
 | Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
 | Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
-| Docker and Podman statistics | Not implemented | Least-privilege opt-in design |
-| In-app alert editor / mobile push delivery | Not implemented | Privacy and delivery reviews |
+| Docker and Podman read-only container snapshots | Implemented, disabled by default | Real running-container validation and explicit Docker permission review |
+| Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | Authorized real delivery and service acceptance |
+| In-app alert editor / mobile push delivery | Not implemented | Privacy and delivery review |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | SQLite backup and isolated restore-rehearsal CLI | Implemented with tests | Independent production recovery acceptance |
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |
