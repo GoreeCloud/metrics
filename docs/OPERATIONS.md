@@ -51,4 +51,7 @@ If a CI job or build fails, investigate before any release. Confirm production d
 
 ## Recovery and retention
 
+A dedicated [safe storage operations guide](STORAGE_RECOVERY.md) covers integrity checks, SQLite online backup and isolated restore rehearsals. No automatic backups or production restore have been performed.
+
+
 A consistent SQLite backup requires using SQLite's online backup API or stopping the service and taking a snapshot of the database with its WAL/SHM. Restore onto a separate authorized test path and validate the schema and sample queries before trusting a backup. No automated backups, schema migrations or restored deployment have been tested by this preview. The 30-day data purge occurs on ingestion only; configure an approved privacy-aware scheduled purge if needed later.

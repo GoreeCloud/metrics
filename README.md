@@ -65,9 +65,13 @@ flutter build apk --debug
 
 A generated native runner does not prove hardware acceptance. On physical Android devices, use a trusted reachable HTTPS hub.
 
+## Consistent SQLite backup and recovery rehearsal
+
+The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, owner-only consistent live snapshots, non-overwriting restore rehearsals and explicit dry-run-first retention. No production data is modified by default. See [storage recovery](docs/STORAGE_RECOVERY.md).
+
 ## Container telemetry (opt-in)
 
-Set \`METRICS_CONTAINER_PROVIDER=podman\` on a trusted agent to gather bounded read-only container statistics. Docker socket access may grant host-root privileges and is never automatically enabled. The hub exposes authenticated \`/api/v1/systems/{node_id}/containers\` and stores snapshots alongside host samples. See [container telemetry](docs/CONTAINER_TELEMETRY.md). Neither container engine nor a host socket is required by default.
+Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent to gather bounded read-only container statistics. Docker socket access may grant host-root privileges and is never automatically enabled. The hub exposes authenticated `/api/v1/systems/{node_id}/containers` and stores snapshots alongside host samples. See [container telemetry](docs/CONTAINER_TELEMETRY.md). Neither container engine nor a host socket is required by default.
 
 ## API
 
