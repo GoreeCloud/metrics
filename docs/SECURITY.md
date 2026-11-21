@@ -8,7 +8,7 @@
 - Agent refuses cleartext remote HTTP and relies on OS certificate validation. Local instructions bind the hub to loopback; the optional Compose example also maps only loopback.
 - Pydantic bounds samples and system names. SQLite queries are parameterized, and database history has an ingest-time 30-day retention rule.
 - Application credentials remain in process memory, not persisted in web browser storage or Flutter app storage. Agent error logs omit HTTP URLs and bodies.
-- Host agent has no remote shell, no inbound listener, no privileged container access, and no cloud telemetry.
+- Host agent has no remote shell, no inbound listener, and no cloud telemetry. Optional Podman/Docker stats are disabled unless explicitly configured; Docker socket access must be separately authorized and can carry root-level risk.
 
 ## Not yet secure for unrestricted deployment
 
