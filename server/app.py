@@ -214,7 +214,13 @@ def scoped_status(request: Request, authorization: Annotated[str | None, Header(
 
 
 @app.get("/healthz")
-def health() -> dict[str, str]:
+def health():
+    """Public liveness/readiness probe with bounded, redacted DB status."""
+    try:
+        with db() as connection:
+            connection.execute("SELECT 1 FROM systems LIMIT 1").fetchone()
+    except (sqlite3.DatabaseError, OSError):
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
     return {"status": "ok"}
 
 

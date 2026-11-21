@@ -13,3 +13,7 @@ The example timestamp is illustrative, not current telemetry. The real response 
 This contract is not an active Mesh connection, a production deployment, Identity actor authorization, or a license to share family telemetry. Future Mesh integration requires an explicit GoreeShield-approved purpose, fixed trusted transport (with real TLS/service identity for remote use), Mesh owner and Identity permissions, a managed status-token lifecycle, negative scope tests, cancellation, outage handling, and a source-owner versioned contract review. Wardveil security owns threat detection; this endpoint is observability status only.
 
 No network request is initiated by the status endpoint. Source and synthetic authentication tests run as part of the Metrics API test suite.
+
+## Independent public readiness endpoint
+
+The existing GET /healthz probe remains public and returns only {"status":"ok"} when the SQLite systems table is readable. It now returns HTTP 503 with {"status":"unavailable"} when persistence is unavailable, without disclosing filesystem paths or stored data. A green response is not a substitute for full alert delivery, TLS, backup or platform-service health checks.

@@ -65,3 +65,21 @@ def test_degraded_status_is_redacted(monkeypatch, tmp_path):
         assert response.status_code == 503
         assert response.json()["state"] == "degraded"
         assert "private path" not in response.text
+
+
+def test_health_not_green_when_database_is_unavailable(monkeypatch, tmp_path):
+    from contextlib import contextmanager
+    env(monkeypatch, tmp_path)
+
+    @contextmanager
+    def broken_db():
+        raise sqlite3.OperationalError("private storage failure")
+        yield
+
+    with TestClient(metrics.app) as client:
+        assert client.get("/healthz").status_code == 200
+        monkeypatch.setattr(metrics, "db", broken_db)
+        failed = client.get("/healthz")
+        assert failed.status_code == 503
+        assert failed.json() == {"status": "unavailable"}
+        assert "private storage failure" not in failed.text
