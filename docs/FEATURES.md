@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | Authenticated host ingestion | Implemented | API runtime and load tests |
 | CPU, memory, disk, network totals, uptime | Implemented via psutil | Real host validation |
-| SQLite 30-day ingest-time retention | Implemented | Restore / migration validation |
+| Configurable SQLite 1–365-day ingest-time retention (30-day default) | Implemented and tested | Long-running operation and scheduled purge verification |
 | Configurable online/utilization alert thresholds | Implemented | Timing and false-positive evaluation |
 | Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | End-to-end authorized delivery and service acceptance |
 | Authenticated Prometheus text format | Implemented | Downstream integration |

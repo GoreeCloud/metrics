@@ -6,7 +6,7 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 
 ## Source capabilities
 
-- Hub: authenticated per-agent ingest, strict validation, SQLite 30-day history, basic 5-second per-node throttle, online/offline status and threshold indicators, historical reads, authenticated Prometheus-format endpoint, minimal health probe.
+- Hub: authenticated per-agent ingest, strict validation, configurable 1–365-day SQLite history (default 30 days), basic 5-second per-node throttle, online/offline status and threshold indicators, historical reads, authenticated Prometheus-format endpoint, minimal health probe.
 - Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime, hostname collection every 30 seconds over verified HTTPS (except localhost HTTP). Experimental rootless Podman or explicitly approved Docker container snapshots are disabled by default.
 - Web: React/Vite with Recharts historical charts, systems overview, current indicators, responsive GoreeCloud UI Lagoon candidate styling.
 - Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history chart and current indicators. Tokens held in app memory only.
@@ -86,6 +86,7 @@ Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent for read-only snapsho
 | GET | /api/v1/systems | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/history?hours=24 | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/containers | Admin Bearer token |
+| GET | /api/v1/config | Admin Bearer token; nonsecret retention and alert settings |
 | GET | /api/v1/alerts | Admin Bearer token |
 | GET | /api/v1/alert-events | Admin Bearer token; journal populated only by worker |
 | GET | /api/v1/metrics | Admin Bearer token, Prometheus text |
