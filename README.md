@@ -65,6 +65,10 @@ flutter build apk --debug
 
 A generated native runner does not prove hardware acceptance. On physical Android devices, use a trusted reachable HTTPS hub.
 
+## Consistent SQLite backup and recovery rehearsal
+
+The development-only \`python -m server.storage_cli\` utility provides read-only database integrity checks, owner-only consistent live snapshots, non-overwriting restore rehearsals and explicit dry-run-first retention. No production data is modified by default. See [storage recovery](docs/STORAGE_RECOVERY.md).
+
 ## API
 
 | Method | Path | Scope |
