@@ -5,6 +5,8 @@ import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, X
 type Machine = { node_id: string; hostname: string; last_seen: number; online: boolean; cpu: number; memory: number; disk: number; memory_bytes: number; disk_bytes: number; rx_bytes: number; tx_bytes: number; uptime_seconds: number };
 type Sample = { ts: number; cpu: number; memory: number; disk: number };
 type Alert = { node_id: string; metric: string; severity: string; message: string };
+type ContainerSnapshot = { name: string; cpu: number; memory: number; rx_bytes: number; tx_bytes: number; ts: number };
+type AlertTransition = { id: number; node_id: string; metric: string; state: string; message: string; created_ts: number };
 type View = 'overview' | 'alerts';
 
 const size = (bytes = 0) => {
@@ -22,6 +24,8 @@ export default function App() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selected, setSelected] = useState('');
   const [history, setHistory] = useState<Sample[]>([]);
+  const [containers, setContainers] = useState<ContainerSnapshot[]>([]);
+  const [alertEvents, setAlertEvents] = useState<AlertTransition[]>([]);
   const [view, setView] = useState<View>('overview');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,13 +60,26 @@ export default function App() {
   }, [refresh, token]);
 
   useEffect(() => {
-    if (!token || !selected) { setHistory([]); return; }
+    if (!token || !selected) { setHistory([]); setContainers([]); return; }
     let active = true;
-    void request('/api/v1/systems/' + encodeURIComponent(selected) + '/history?hours=24')
+    const host = encodeURIComponent(selected);
+    void request('/api/v1/systems/' + host + '/history?hours=24')
       .then(data => { if (active) setHistory(data.samples); })
       .catch(() => { if (active) setHistory([]); });
+    void request('/api/v1/systems/' + host + '/containers')
+      .then(data => { if (active) setContainers(data.containers); })
+      .catch(() => { if (active) setContainers([]); });
     return () => { active = false; };
   }, [selected, request, lastRefresh, token]);
+
+  useEffect(() => {
+    if (!token || view !== 'alerts') return;
+    let active = true;
+    void request('/api/v1/alert-events?limit=50')
+      .then(data => { if (active) setAlertEvents(data.events); })
+      .catch(() => { if (active) setAlertEvents([]); });
+    return () => { active = false; };
+  }, [token, view, request, lastRefresh]);
 
   const machine = machines.find(m => m.node_id === selected);
   const online = machines.filter(m => m.online).length;
@@ -95,7 +112,7 @@ export default function App() {
       </nav>
       <div className="sidebar-bottom">
         <span className="sidebar-status"><CircleDot size={15} /> Private hub</span>
-        <button type="button" className="nav" onClick={() => { setToken(''); setTokenField(''); setMachines([]); setError(''); }}><LogOut size={18}/> Disconnect</button>
+        <button type="button" className="nav" onClick={() => { setToken(''); setTokenField(''); setMachines([]); setHistory([]); setContainers([]); setAlertEvents([]); setError(''); }}><LogOut size={18}/> Disconnect</button>
       </div>
     </aside>
     <main className="content">
@@ -115,7 +132,16 @@ export default function App() {
           {alerts.length ? alerts.map((a, i) => <div className="alert-row" key={a.node_id + a.metric + i}>
             <span className="alert-marker"/><div><strong>{a.node_id}</strong><p>{a.message}</p></div><span className="alert-label">{a.severity}</span>
           </div>) : <div className="empty"><ShieldCheck size={38}/><h3>No current alerts</h3><p>No threshold or offline indicators are active.</p></div>}
-          <div className="fine-print">Thresholds are 90% CPU, memory or disk and 120 seconds without a heartbeat. Notification delivery is not yet implemented.</div>
+          <div className="fine-print">Thresholds are configured on the hub (defaults: 90% and 120 seconds offline). External notifications require a separately enabled webhook worker.</div>
+          <div className="event-history" aria-label="Recent alert transitions">
+            <h2>Recent transitions <span className="muted">({alertEvents.length})</span></h2>
+            {alertEvents.length === 0 ? <p className="muted">No recorded transitions. An operator must start the optional notification journal worker.</p>
+              : alertEvents.map(event => <div className="event-row" key={event.id}>
+                <span className={'event-state ' + (event.state === 'resolved' ? 'event-resolved' : 'event-firing')}>{event.state}</span>
+                <div><strong>{event.node_id} · {event.metric}</strong><p>{event.message}</p></div>
+                <time dateTime={new Date(event.created_ts * 1000).toISOString()}>{new Date(event.created_ts * 1000).toLocaleString()}</time>
+              </div>)}
+          </div>
         </div> : <>
           <div className="summary-grid">
             <div className="stat-card"><div className="stat-title"><span>Monitored systems</span><Server size={20}/></div><strong>{machines.length}</strong><span className="stat-caption">Configured agents reporting</span></div>
@@ -161,6 +187,13 @@ export default function App() {
               <div className="network-card"><ArrowDown size={20}/><div><span>Received since boot</span><strong>{size(machine.rx_bytes)}</strong></div></div>
               <div className="network-card"><ArrowUp size={20}/><div><span>Sent since boot</span><strong>{size(machine.tx_bytes)}</strong></div></div>
               <div className="network-card"><Activity size={20}/><div><span>System uptime</span><strong>{Math.floor(machine.uptime_seconds / 3600)} hours</strong></div></div>
+            </div>
+            <div className="section-heading"><div><h2>Containers <span className="muted">/ Optional</span></h2><p>Read-only snapshots from explicitly enabled Podman or Docker collection.</p></div></div>
+            <div className="panel">
+              {containers.length === 0 ? <p className="muted">No container snapshots for this host. Collection is disabled by default.</p>
+                : <div className="container-table-wrap"><table className="container-table"><thead><tr><th>Container</th><th>CPU</th><th>Memory</th><th>Network received</th><th>Network sent</th></tr></thead>
+                <tbody>{containers.map(container => <tr key={container.name}><th scope="row">{container.name}</th><td>{pct(container.cpu)}</td><td>{pct(container.memory)}</td><td>{size(container.rx_bytes)}</td><td>{size(container.tx_bytes)}</td></tr>)}</tbody>
+                </table></div>}
             </div>
           </div>}
         </>}
