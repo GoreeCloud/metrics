@@ -1,0 +1,26 @@
+[Unit]
+Description=GoreeCloud Metrics opt-in alert transition journal and webhook notifier
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=metrics
+Group=metrics
+WorkingDirectory=/opt/goreecloud-metrics
+EnvironmentFile=/etc/goreecloud-metrics/hub.env
+ExecStart=/opt/goreecloud-metrics/.venv/bin/python -m server.notifications
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/goreecloud-metrics
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

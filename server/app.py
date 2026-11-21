@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
+from server.alert_rules import AlertRules, evaluate
 
 IDENTIFIER = r"^[a-z0-9][a-z0-9-]{0,62}$"
 RETENTION_DAYS = 30
@@ -124,6 +125,7 @@ def init_db() -> None:
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     admin, agents = config()
+    application.state.alert_rules = AlertRules.from_environment()
     application.state.admin = admin
     application.state.agents = agents
     init_db()
@@ -220,7 +222,8 @@ def latest_systems() -> list[dict]:
             ) ORDER BY s.node_id
         """).fetchall()
     now = int(time.time())
-    return [dict(row) | {"online": now - row["last_seen"] <= ONLINE_SECONDS} for row in rows]
+    offline_seconds = AlertRules.from_environment().offline_seconds
+    return [dict(row) | {"online": now - row["last_seen"] <= offline_seconds} for row in rows]
 
 
 @app.get("/api/v1/systems", dependencies=[Depends(require_admin)])
@@ -269,17 +272,23 @@ def containers(node_id: str):
 
 @app.get("/api/v1/alerts", dependencies=[Depends(require_admin)])
 def alerts():
-    active = []
-    for system in latest_systems():
-        if not system["online"]:
-            active.append({"node_id": system["node_id"], "severity": "critical",
-                           "metric": "heartbeat", "message": "Agent offline"})
-        else:
-            for metric in ("cpu", "memory", "disk"):
-                if system[metric] is not None and system[metric] >= 90:
-                    active.append({"node_id": system["node_id"], "severity": "warning",
-                                   "metric": metric, "message": f"{metric} at or above 90%"})
-    return {"alerts": active, "note": "Current-state threshold indicators; notification delivery not implemented"}
+    active = evaluate(latest_systems(), AlertRules.from_environment())
+    return {"alerts": active, "note": "Current-state indicators; opt-in webhook worker is separate"}
+
+
+@app.get("/api/v1/alert-events", dependencies=[Depends(require_admin)])
+def alert_events(limit: int = Query(default=100, ge=1, le=500)):
+    with db() as connection:
+        available = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='alert_events'"
+        ).fetchone()
+        if not available:
+            return {"events": []}
+        rows = connection.execute(
+            """SELECT id,node_id,metric,state,message,created_ts,sent_ts,attempts
+            FROM alert_events ORDER BY id DESC LIMIT ?""", (limit,)
+        ).fetchall()
+    return {"events": [dict(row) for row in rows]}
 
 
 @app.get("/api/v1/metrics", response_class=PlainTextResponse,
