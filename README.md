@@ -65,9 +65,13 @@ flutter build apk --debug
 
 A generated native runner does not prove hardware acceptance. On physical Android devices, use a trusted reachable HTTPS hub.
 
+## Consistent SQLite backup and recovery rehearsal
+
+The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, owner-only consistent live snapshots, non-overwriting restore rehearsals and dry-run-first retention. See [storage recovery](docs/STORAGE_RECOVERY.md).
+
 ## Alert rules and opt-in webhook worker
 
-\`METRICS_ALERT_CPU_PERCENT\`, \`METRICS_ALERT_MEMORY_PERCENT\`, \`METRICS_ALERT_DISK_PERCENT\` and \`METRICS_ALERT_OFFLINE_SECONDS\` control current-state alert thresholds at startup. The separate \`python -m server.notifications\` process records deduplicated firing/resolved transitions in SQLite. It can deliver **opt-in** HTTPS webhook events if explicitly configured; no external delivery is enabled or deployed by default. The worker requires a single instance and appropriate DB access. See [alert operations](docs/ALERTS.md). This is not a verified GoreeCloud Notify integration.
+`METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` control current-state thresholds. The separate `python -m server.notifications` process records deduplicated firing/resolved transitions in SQLite and can deliver optional HTTPS webhook events; none are configured or deployed by default. See [alert operations](docs/ALERTS.md). This is not a verified GoreeCloud Notify integration.
 
 ## API
 
