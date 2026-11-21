@@ -5,6 +5,32 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// No debug-keystore fallback for release artifacts. Signing credentials are
+// provided only by a separately authorized secure environment.
+def releaseSigningFields = [
+    "GOREEMETRICS_ANDROID_KEYSTORE",
+    "GOREEMETRICS_ANDROID_KEY_ALIAS",
+    "GOREEMETRICS_ANDROID_STORE_PASSWORD",
+    "GOREEMETRICS_ANDROID_KEY_PASSWORD"
+]
+def releaseSigningReady = releaseSigningFields.every {
+    System.getenv(it)?.trim()
+}
+def releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase(java.util.Locale.ROOT).contains("release")
+}
+if (releaseTaskRequested && !releaseSigningReady) {
+    throw new GradleException("Release signing requires all four GOREEMETRICS_ANDROID_* environment variables")
+}
+def releaseKeystoreFile = releaseSigningReady ? new File(System.getenv("GOREEMETRICS_ANDROID_KEYSTORE")) : null
+if (releaseTaskRequested && (!releaseKeystoreFile.isAbsolute() || !releaseKeystoreFile.isFile())) {
+    throw new GradleException("Release keystore must be an existing regular file at an absolute path")
+}
+if (releaseTaskRequested &&
+    releaseKeystoreFile.canonicalPath.startsWith(rootProject.projectDir.parentFile.parentFile.parentFile.canonicalPath + File.separator)) {
+    throw new GradleException("Release keystore must be stored outside the repository source tree")
+}
+
 android {
     namespace = "com.goreecloud.goreecloud_metrics"
     compileSdk = flutter.compileSdkVersion
@@ -30,11 +56,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningReady) {
+            release {
+                storeFile releaseKeystoreFile
+                keyAlias System.getenv("GOREEMETRICS_ANDROID_KEY_ALIAS")
+                storePassword System.getenv("GOREEMETRICS_ANDROID_STORE_PASSWORD")
+                keyPassword System.getenv("GOREEMETRICS_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // No signing configuration without an explicit release key.
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
