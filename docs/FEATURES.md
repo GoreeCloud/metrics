@@ -10,7 +10,7 @@
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
 | Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
 | Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
-| Docker and Podman statistics | Not implemented | Least-privilege opt-in design |
+| Docker and Podman read-only container snapshots | Implemented, disabled by default | Real rootless Podman validation; explicit Docker security review |
 | Notification delivery and alert configuration | Not implemented | Privacy and delivery reviews |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |
