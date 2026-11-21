@@ -24,7 +24,16 @@ def test_package_and_validate_debian_structure(tmp_path):
                          capture_output=True, text=True, check=True, timeout=15)
     assert "Created" in run.stdout
     archive = output / "goreecloud-metrics_0.1.0+1_amd64.deb"
-    assert archive.is_file() and (output / (archive.name + ".sha256")).is_file()
+    checksum = output / (archive.name + ".sha256")
+    assert archive.is_file() and checksum.is_file()
+    # Must validate after copying files off the original CI host.
+    assert checksum.read_text().split()[1] == archive.name
+    moved = tmp_path / "different_machine"
+    moved.mkdir()
+    shutil.copy2(archive, moved / archive.name)
+    shutil.copy2(checksum, moved / checksum.name)
+    subprocess.run(["sha256sum", "-c", checksum.name], cwd=moved,
+                   capture_output=True, text=True, check=True, timeout=10)
     metadata = subprocess.check_output(["dpkg-deb", "--field", str(archive)], text=True)
     listing = subprocess.check_output(["dpkg-deb", "--contents", str(archive)], text=True)
     assert "Package: goreecloud-metrics" in metadata

@@ -67,6 +67,6 @@ if find "$stage" -perm /6000 -print -quit | grep -q .; then
   exit 2
 fi
 dpkg-deb --root-owner-group --build "$stage" "$target" >/dev/null
-sha256sum -- "$target" > "$target.sha256"
+(cd "$output_dir" && sha256sum -- "$(basename "$target")" > "$(basename "$target").sha256")
 printf 'Created %s\n' "$target"
 printf 'SHA-256 checksum %s\n' "$target.sha256"

@@ -12,7 +12,7 @@ version=$(sed -n 's/^version: //p' apps/native/pubspec.yaml | head -n 1)
 bash scripts/package_linux_deb.sh apps/native/build/linux/x64/release/bundle "$version" artifacts
 dpkg-deb --info artifacts/goreecloud-metrics_"$version"_amd64.deb
 dpkg-deb --contents artifacts/goreecloud-metrics_"$version"_amd64.deb
-sha256sum -c artifacts/goreecloud-metrics_"$version"_amd64.deb.sha256
+(cd artifacts && sha256sum -c "goreecloud-metrics_${version}_amd64.deb.sha256")
 ~~~
 
 The packager runs without root, requires an existing complete release bundle, checks for unexpected symlinks and setuid files, refuses to overwrite package filenames, creates an owner-independent Debian archive and SHA-256 checksum, and includes a launcher and .desktop entry with a standard system-monitor icon fallback. It does **not** install the package or enroll the machine in any telemetry collection. Package dependencies are declared for GTK, Glib, libc and C++; validate them on each supported Debian/Ubuntu release.

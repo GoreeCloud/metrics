@@ -98,7 +98,7 @@ jobs:
           version=$(sed -n 's/^version: //p' pubspec.yaml | head -n 1)
           bash ../../scripts/package_linux_deb.sh build/linux/x64/release/bundle "$version" ../../artifacts
           dpkg-deb --info "../../artifacts/goreecloud-metrics_${version}_amd64.deb"
-          sha256sum -c "../../artifacts/goreecloud-metrics_${version}_amd64.deb.sha256"
+          (cd ../../artifacts && sha256sum -c "goreecloud-metrics_${version}_amd64.deb.sha256")
       - uses: actions/upload-artifact@v4
         with:
           name: goreecloud-metrics-linux-amd64-deb-preview
