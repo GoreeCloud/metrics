@@ -20,3 +20,4 @@
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | SQLite backup and isolated restore-rehearsal CLI | Implemented with tests | Independent production recovery acceptance |
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |
+| Optional status-only bearer scope for future Mesh use | Source implemented; fail-closed tests | Real Mesh admission, Identity, policy and transport acceptance |
