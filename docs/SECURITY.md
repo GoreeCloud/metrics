@@ -14,7 +14,7 @@
 
 - No users/roles/OIDC/MFA, built-in TLS termination, multi-factor session security, configurable audit log, secret rotation API, at-rest token hashing, brute-force controls, IP-level throttling, or production DDoS protections.
 - Simplified fixed 5-second per-node throttling does not prevent all resource-exhaustion attacks; place behind trusted rate-limited ingress.
-- Default threshold endpoint returns current-state indicators only. An optional separate worker can journal transitions and send HTTPS webhook notifications *only* to an explicitly configured endpoint; apply GoreeShield consent and destination reviews first.
+- Default threshold endpoint returns current-state indicators only. An optional separate worker can journal transitions and send HTTPS webhook notifications *only* to an explicitly configured endpoint; apply GoreeShield consent and destination reviews first. GoreeCloud Notify API tokens must remain in a protected worker environment, and its optional adapter refuses cleartext HTTP.
 - Purge occurs during ingest. A paused system will retain historical data until next ingest or a manual controlled purge.
 - SQLite backups must be consistent (use online backup API or stop service and preserve DB/WAL/SHM). Encryption, restore tests, migration support and storage corruption handling require validation.
 - Never expose the API directly to the public Internet; use least-privilege accounts, HTTPS, strict firewall rules and private network access. Never mount a Docker socket casually.
