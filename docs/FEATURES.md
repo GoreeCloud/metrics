@@ -5,14 +5,16 @@
 | Authenticated host ingestion | Implemented | API runtime and load tests |
 | CPU, memory, disk, network totals, uptime | Implemented via psutil | Real host validation |
 | SQLite 30-day ingest-time retention | Implemented | Restore / migration validation |
-| Online and utilization indicators | Implemented | Alert behavior and timing tests |
+| Configurable online/utilization alert thresholds | Implemented | Timing and false-positive evaluation |
+| Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | End-to-end authorized delivery and service acceptance |
 | Authenticated Prometheus text format | Implemented | Downstream integration |
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
 | Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
 | Native container snapshot / alert-transition views | Implemented in Flutter source | API integration and physical-device acceptance |
 | Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
-| Docker and Podman read-only container snapshots | Implemented, disabled by default | Real rootless Podman validation; explicit Docker security review |
-| Notification delivery and alert configuration | Not implemented | Privacy and delivery reviews |
+| Docker and Podman read-only container snapshots | Implemented, disabled by default | Real running-container validation and explicit Docker permission review |
+| Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | Authorized real delivery and service acceptance |
+| In-app alert editor / mobile push delivery | Not implemented | Privacy and delivery review |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | SQLite backup and isolated restore-rehearsal CLI | Implemented with tests | Independent production recovery acceptance |
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |

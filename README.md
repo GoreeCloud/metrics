@@ -12,7 +12,7 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 - Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history, opt-in container snapshots, alert-transition history and current indicators. The event history view requires PR #20's backend API. Tokens held in app memory only.
 - Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
-**Not implemented:** container runtime control and independently verified Docker/Podman telemetry on real hosts, alert delivery, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, backup/restore validation, production acceptance.
+**Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, production backup/restore acceptance or production deployment.
 
 ## Local development setup
 
@@ -67,11 +67,15 @@ A generated native runner does not prove hardware acceptance. On physical Androi
 
 ## Consistent SQLite backup and recovery rehearsal
 
-The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, owner-only consistent live snapshots, non-overwriting restore rehearsals and explicit dry-run-first retention. No production data is modified by default. See [storage recovery](docs/STORAGE_RECOVERY.md).
+The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, consistent owner-only live snapshots, non-overwriting restore rehearsals and dry-run-first retention. See [storage recovery](docs/STORAGE_RECOVERY.md).
 
 ## Container telemetry (opt-in)
 
-Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent to gather bounded read-only container statistics. Docker socket access may grant host-root privileges and is never automatically enabled. The hub exposes authenticated `/api/v1/systems/{node_id}/containers` and stores snapshots alongside host samples. See [container telemetry](docs/CONTAINER_TELEMETRY.md). Neither container engine nor a host socket is required by default.
+Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent for read-only snapshots; Docker socket access may convey host-root authority and is never enabled automatically. The authenticated `/api/v1/systems/{node_id}/containers` endpoint exposes bounded telemetry. See [container telemetry](docs/CONTAINER_TELEMETRY.md).
+
+## Alert rules and opt-in webhook worker
+
+`METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` control indicators. A separate `python -m server.notifications` process can record firing/resolved transitions and optionally send HTTPS webhooks. No delivery is configured or deployed by default; this is not a verified GoreeCloud Notify runtime integration. See [alert operations](docs/ALERTS.md).
 
 ## API
 
@@ -83,9 +87,10 @@ Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent to gather bounded rea
 | GET | /api/v1/systems/{node_id}/history?hours=24 | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/containers | Admin Bearer token |
 | GET | /api/v1/alerts | Admin Bearer token |
+| GET | /api/v1/alert-events | Admin Bearer token; journal populated only by worker |
 | GET | /api/v1/metrics | Admin Bearer token, Prometheus text |
 
-Server timestamps override any agent clocks. Alerts are current indicators (>=90% CPU, RAM or disk; no heartbeat for 120 seconds), not notifications. The hub has no remote execution capability.
+Server timestamps override any agent clocks. Alerts are configurable current-state indicators (default >=90% CPU, RAM or disk; offline at 120 seconds). An optional separate worker records transitions and sends explicitly configured HTTPS events. The hub has no remote execution capability.
 
 ## Repository and governance
 
