@@ -9,6 +9,7 @@
 | Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | End-to-end authorized delivery and service acceptance |
 | Authenticated Prometheus text format | Implemented | Downstream integration |
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
+| React container snapshots and alert-transition history panels | Implemented in client source; backend API merge required | End-to-end UI/API integration testing |
 | Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
 | Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
 | Docker and Podman read-only container snapshots | Implemented, disabled by default | Real running-container validation and explicit Docker permission review |
