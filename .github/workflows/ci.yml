@@ -70,7 +70,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build apk --debug
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: goreecloud-metrics-android-debug
           path: apps/native/build/app/outputs/flutter-apk/app-debug.apk
@@ -99,7 +99,7 @@ jobs:
           bash ../../scripts/package_linux_deb.sh build/linux/x64/release/bundle "$version" ../../artifacts
           dpkg-deb --info "../../artifacts/goreecloud-metrics_${version}_amd64.deb"
           (cd ../../artifacts && sha256sum -c "goreecloud-metrics_${version}_amd64.deb.sha256")
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: goreecloud-metrics-linux-amd64-deb-preview
           path: |
@@ -107,7 +107,7 @@ jobs:
             artifacts/*.deb.sha256
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: goreecloud-metrics-linux-x64
           path: apps/native/build/linux/x64/release/bundle/
