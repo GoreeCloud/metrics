@@ -18,6 +18,7 @@ import urllib.request
 
 from server.alert_rules import AlertRules, evaluate
 from server.app import db, init_db, latest_systems
+from server.notify_adapter import configured_target, message_payload
 
 _STOP = False
 
@@ -90,7 +91,8 @@ class RejectRedirects(urllib.request.HTTPRedirectHandler):
         raise ValueError("Webhook redirects are not permitted")
 
 
-def deliver_pending(url: str | None, token: str | None, *, now: int | None = None) -> tuple[int, int]:
+def deliver_pending(url: str | None, token: str | None, *, now: int | None = None,
+                    notify_mode: bool = False) -> tuple[int, int]:
     if not url:
         return 0, 0
     stamp = int(time.time()) if now is None else now
@@ -104,7 +106,8 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
         ).fetchall()
     opener = urllib.request.build_opener(RejectRedirects())
     for event in entries:
-        payload = {key: event[key] for key in ("node_id", "metric", "state", "message", "created_ts")}
+        original = {key: event[key] for key in ("node_id", "metric", "state", "message", "created_ts")}
+        payload = message_payload(original) if notify_mode else original
         headers = {"Content-Type": "application/json", "User-Agent": "GoreeCloud-Metrics-Notifier/0.1"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -137,14 +140,15 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
 
 def run_once() -> tuple[int, int, int]:
     rules = AlertRules.from_environment()
-    url, token = webhook_configuration()
+    notify_url, notify_token = configured_target()
+    url, token = (notify_url, notify_token) if notify_url else webhook_configuration()
     init_db()
     initialize_journal()
     systems = latest_systems()
     # Real-time heartbeat is determined by the hub; no synthetic telemetry.
     active = evaluate(systems, rules)
     transitions = record_transitions(active)
-    delivered, failed = deliver_pending(url, token)
+    delivered, failed = deliver_pending(url, token, notify_mode=bool(notify_url))
     return transitions, delivered, failed
 
 

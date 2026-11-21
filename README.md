@@ -75,7 +75,7 @@ Set `METRICS_CONTAINER_PROVIDER=podman` on a trusted agent for read-only snapsho
 
 ## Alert rules and opt-in webhook worker
 
-`METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` control indicators. A separate `python -m server.notifications` process can record firing/resolved transitions and optionally send HTTPS webhooks. No delivery is configured or deployed by default; this is not a verified GoreeCloud Notify runtime integration. See [alert operations](docs/ALERTS.md).
+The separate `python -m server.notifications` process records deduplicated firing/resolved transitions and can optionally send HTTPS webhooks. Environment variables `METRICS_ALERT_CPU_PERCENT`, `METRICS_ALERT_MEMORY_PERCENT`, `METRICS_ALERT_DISK_PERCENT` and `METRICS_ALERT_OFFLINE_SECONDS` configure thresholds. A separately configurable GoreeCloud Notify adapter implements its documented topic-publish JSON contract; real inter-service delivery, authorization, privacy acceptance and deployment are unverified. See [alert operations](docs/ALERTS.md).
 
 ## API
 
