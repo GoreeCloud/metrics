@@ -47,3 +47,22 @@ def test_invalid_provider_rejected(monkeypatch):
     monkeypatch.setenv("METRICS_CONTAINER_PROVIDER", "bash")
     with pytest.raises(ValueError):
         container_stats.collect_containers()
+
+
+def test_excessive_stats_output_is_rejected(monkeypatch):
+    monkeypatch.setenv("METRICS_CONTAINER_PROVIDER", "podman")
+    monkeypatch.setattr(container_stats.shutil, "which", lambda _: "/usr/bin/podman")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k:
+                        subprocess.CompletedProcess(a[0], 0, b"x" * (container_stats.MAX_BYTES + 1), b""))
+    with pytest.raises(ValueError, match="safety bound"):
+        container_stats.collect_containers()
+
+
+def test_container_failure_does_not_block_host_telemetry(monkeypatch):
+    from agent import agent
+    monkeypatch.setattr(agent, "collect_containers",
+                        lambda: (_ for _ in ()).throw(OSError("synthetic provider unavailable")))
+    sample = agent.collect("test-host")
+    assert sample["node_id"] == "test-host"
+    assert "cpu_percent" in sample
+    assert "containers" not in sample
