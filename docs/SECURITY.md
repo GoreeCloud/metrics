@@ -22,3 +22,7 @@
 ## Responsible disclosure
 
 Report security concerns privately using the repository security reporting capability where available. Do not include secrets or production data in public issue reports. No formal security audit or device acceptance is claimed.
+
+## Integration status isolation
+
+An optional, distinct status-only bearer token enables an owner-held minimal GET /v1/status route. The token cannot access private system metrics, agent ingestion or alert events; an unset token disables status responses. The status projection includes only an owner schema identifier, state and UTC observation timestamp; see [status-only source contract](MESH_STATUS_CONTRACT.md). No GoreeCloud Mesh, Identity or Wardveil runtime is implied.
