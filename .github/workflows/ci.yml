@@ -93,6 +93,20 @@ jobs:
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - run: flutter build linux --release
+      - name: Package native Debian development installer
+        run: |
+          version=$(sed -n 's/^version: //p' pubspec.yaml | head -n 1)
+          bash ../../scripts/package_linux_deb.sh build/linux/x64/release/bundle "$version" ../../artifacts
+          dpkg-deb --info "../../artifacts/goreecloud-metrics_${version}_amd64.deb"
+          sha256sum -c "../../artifacts/goreecloud-metrics_${version}_amd64.deb.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-metrics-linux-amd64-deb-preview
+          path: |
+            artifacts/*.deb
+            artifacts/*.deb.sha256
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: goreecloud-metrics-linux-x64
