@@ -19,6 +19,16 @@ from server.alert_rules import AlertRules, evaluate
 
 IDENTIFIER = r"^[a-z0-9][a-z0-9-]{0,62}$"
 RETENTION_DAYS = 30
+
+
+def retention_days() -> int:
+    try:
+        days = int(os.environ.get("METRICS_RETENTION_DAYS", str(RETENTION_DAYS)))
+    except ValueError as exc:
+        raise ValueError("METRICS_RETENTION_DAYS must be an integer") from exc
+    if not 1 <= days <= 365:
+        raise ValueError("METRICS_RETENTION_DAYS must be 1 through 365")
+    return days
 ONLINE_SECONDS = 120
 
 
@@ -126,6 +136,7 @@ def init_db() -> None:
 async def lifespan(application: FastAPI):
     admin, agents = config()
     application.state.alert_rules = AlertRules.from_environment()
+    application.state.retention_days = retention_days()
     application.state.admin = admin
     application.state.agents = agents
     init_db()
@@ -203,10 +214,9 @@ def ingest(sample: Sample, request: Request, x_agent_token: Annotated[str | None
                 (sample.node_id, now, item.name, item.cpu_percent,
                  item.memory_percent, item.rx_bytes, item.tx_bytes)
             )
-        connection.execute("DELETE FROM container_samples WHERE ts < ?",
-                           (now - RETENTION_DAYS * 86400,))
-        connection.execute("DELETE FROM samples WHERE ts < ?",
-                           (now - RETENTION_DAYS * 86400,))
+        cutoff = now - request.app.state.retention_days * 86400
+        connection.execute("DELETE FROM container_samples WHERE ts < ?", (cutoff,))
+        connection.execute("DELETE FROM samples WHERE ts < ?", (cutoff,))
     return {"accepted": True, "server_ts": now}
 
 
@@ -224,6 +234,21 @@ def latest_systems() -> list[dict]:
     now = int(time.time())
     offline_seconds = AlertRules.from_environment().offline_seconds
     return [dict(row) | {"online": now - row["last_seen"] <= offline_seconds} for row in rows]
+
+
+@app.get("/api/v1/config", dependencies=[Depends(require_admin)])
+def visible_configuration(request: Request):
+    rules = request.app.state.alert_rules
+    return {
+        "retention_days": request.app.state.retention_days,
+        "alert_thresholds": {
+            "cpu_percent": rules.cpu,
+            "memory_percent": rules.memory,
+            "disk_percent": rules.disk,
+            "offline_seconds": rules.offline_seconds,
+        },
+        "webhook_delivery": "requires a separately configured operator worker",
+    }
 
 
 @app.get("/api/v1/systems", dependencies=[Depends(require_admin)])
