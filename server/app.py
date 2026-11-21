@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sqlite3
+from datetime import datetime, timezone
 import time
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Annotated, Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from server.alert_rules import AlertRules, evaluate
 
@@ -74,6 +75,19 @@ def config() -> tuple[str, dict[str, str]]:
     if len(set(agents.values())) != len(agents):
         raise RuntimeError("Agent tokens must be distinct")
     return admin, agents
+
+
+def configured_status_token(admin: str, agents: dict[str, str]) -> str | None:
+    """Third opt-in bearer credential for a narrow, redacted integration status."""
+    token = os.environ.get("METRICS_STATUS_TOKEN", "")
+    if not token:
+        return None
+    if (not 32 <= len(token) <= 1024
+            or not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,1024}={0,2}", token)
+            or hmac.compare_digest(token, admin)
+            or any(hmac.compare_digest(token, agent) for agent in agents.values())):
+        raise RuntimeError("METRICS_STATUS_TOKEN must be distinct and 32-1024 safe characters")
+    return token
 
 
 @contextmanager
@@ -137,6 +151,7 @@ async def lifespan(application: FastAPI):
     admin, agents = config()
     application.state.alert_rules = AlertRules.from_environment()
     application.state.retention_days = retention_days()
+    application.state.status_token = configured_status_token(admin, agents)
     application.state.admin = admin
     application.state.agents = agents
     init_db()
@@ -172,6 +187,30 @@ def check_agent(request: Request, sample: Sample, key: str | None) -> None:
     expected = request.app.state.agents.get(sample.node_id, "")
     if not expected or not key or not hmac.compare_digest(key, expected):
         raise HTTPException(401, "Unauthorized")
+
+
+@app.get("/v1/status")
+def scoped_status(request: Request, authorization: Annotated[str | None, Header()] = None):
+    """Dedicated status-only scope; no agent or administrator data is returned."""
+    expected = request.app.state.status_token
+    if expected is None:
+        raise HTTPException(404, "Not Found")
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not hmac.compare_digest(token, expected):
+        raise HTTPException(401, "Unauthorized", headers={"WWW-Authenticate": "Bearer"})
+    content_length = request.headers.get("content-length", "0")
+    if (request.url.query or not content_length.isdecimal() or int(content_length) != 0
+            or "transfer-encoding" in request.headers):
+        raise HTTPException(400, "Status requests must not include query parameters or a body")
+    status_code, state = 200, "ok"
+    try:
+        latest_systems()  # Readback only; no host information leaves the owner.
+    except (sqlite3.DatabaseError, OSError):
+        status_code, state = 503, "degraded"
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return JSONResponse(status_code=status_code, content={
+        "schema_version": "metrics.status.v1", "state": state, "observed_at": timestamp,
+    })
 
 
 @app.get("/healthz")
