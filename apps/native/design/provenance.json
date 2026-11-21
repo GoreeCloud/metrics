@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "upstream": "https://github.com/GoreeCloud/gc-ui",
+  "upstreamCommit": "be8b819748d1ef0f6b2d3e786f4b22864cb3d07d",
+  "license": "MIT",
+  "source": "gc.tokens.json",
+  "sha256": "d3226033ba50d601fcabbb01eadc2fdff8eb1be6cde6f6ebe8b0b47f1041e8e0",
+  "status": "alpha-candidate-values-pending-founder-visual-review",
+  "selection": "lagoon-light-dark-semantic-roles",
+  "generator": "scripts/generate_flutter_gc_ui.py",
+  "output": "apps/native/lib/gc_ui_colors.dart",
+  "consumer": "Flutter native Linux and Android clients",
+  "implementationStatus": "development-source-validation-not-release-acceptance"
+}
