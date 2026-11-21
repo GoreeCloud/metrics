@@ -98,12 +98,23 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
     stamp = int(time.time()) if now is None else now
     delivered = failed = 0
     with db() as connection:
+        # Atomic event claims are committed before network IO. A second worker
+        # cannot select the same event during the 60s claim lease. A crashed
+        # worker leaves the claim to expire so an eligible event can retry.
+        connection.execute("BEGIN IMMEDIATE")
         entries = connection.execute(
             """SELECT id,node_id,metric,state,message,created_ts,attempts
             FROM alert_events
             WHERE sent_ts IS NULL AND attempts < 5 AND next_attempt_ts <= ?
             ORDER BY id LIMIT 25""", (stamp,)
         ).fetchall()
+        for event in entries:
+            connection.execute(
+                """UPDATE alert_events
+                   SET attempts=attempts+1, next_attempt_ts=?
+                   WHERE id=? AND sent_ts IS NULL""",
+                (stamp + 60, event["id"])
+            )
     opener = urllib.request.build_opener(RejectRedirects())
     for event in entries:
         original = {key: event[key] for key in ("node_id", "metric", "state", "message", "created_ts")}
@@ -124,7 +135,7 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
             with db() as connection:
                 delay = min(3600, 30 * 2 ** min(int(event["attempts"]), 6))
                 connection.execute(
-                    """UPDATE alert_events SET attempts=attempts+1,
+                    """UPDATE alert_events SET
                     next_attempt_ts=? WHERE id=? AND sent_ts IS NULL""",
                     (stamp + delay, event["id"])
                 )
