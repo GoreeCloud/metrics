@@ -16,3 +16,7 @@ python -m server.storage_cli --database ./metrics-rehearsal.sqlite3 retention --
 Backup uses SQLite's online backup API and does not overwrite destinations. The tool validates the database schema and SQLite quick_check, creates owner-only (0600) snapshots and reports SHA-256 checksums for recorded recovery evidence. Restore rehearsals create a **new database**, never replace an existing file. The retention command is dry-run unless `--apply` is specified.
 
 **Limitations:** this does not schedule backups, encrypt off-host copies, establish disaster recovery, restore a running production database, rotate secrets, or validate application upgrades. Retention defaults to 30 days in the hub; the standalone CLI supports explicitly chosen 1–365 day cleanup periods and requires separate execution. Protect copied files and remove only after applicable preservation requirements.
+
+## Hub runtime retention configuration
+
+Set `METRICS_RETENTION_DAYS` to an integer from 1 to 365 before starting the hub (default 30). This affects host and container sample purging on **successful ingestion**; it does not schedule background deletion. Use the admin-authenticated `GET /api/v1/config` endpoint to verify the nonsecret active value and alert thresholds. Set a reviewed privacy retention policy before deployment.
