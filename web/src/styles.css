@@ -48,3 +48,10 @@
 .history-period:hover{color:var(--text)}
 .history-period.active{background:var(--surface);box-shadow:var(--shadow);color:var(--brand)}
 .history-period:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+/* Explicit, owner-only raw data export; canonical GoreeCloud UI semantic values. */
+.history-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.export-button{min-height:44px;border:1px solid var(--outline);background:var(--surface);border-radius:11px;padding:8px 16px;color:var(--brand);font-weight:650}
+.export-button:hover{background:var(--tonal)}
+.export-button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.export-hint{font-size:12px;color:var(--soft);line-height:1.5;margin:0 0 12px}

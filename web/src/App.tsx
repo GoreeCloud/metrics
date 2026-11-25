@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, ArrowDown, ArrowUp, Bell, CircleDot, Cpu, HardDrive, LayoutDashboard, LogOut, MemoryStick, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { fetchHostCsv } from './hostExport';
 
 type Machine = { node_id: string; hostname: string; last_seen: number; online: boolean; cpu: number; memory: number; disk: number; memory_bytes: number; disk_bytes: number; rx_bytes: number; tx_bytes: number; uptime_seconds: number };
 type Sample = { ts: number; cpu: number; memory: number; disk: number };
@@ -26,6 +27,9 @@ export default function App() {
   const [selected, setSelected] = useState('');
   const [history, setHistory] = useState<Sample[]>([]);
   const [historyHours, setHistoryHours] = useState<6 | 24 | 168>(24);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportNote, setExportNote] = useState('');
+  const [exportFailed, setExportFailed] = useState(false);
   const [containers, setContainers] = useState<ContainerSnapshot[]>([]);
   const [networkRate, setNetworkRate] = useState<NetworkRate | null>(null);
   const [alertEvents, setAlertEvents] = useState<AlertTransition[]>([]);
@@ -97,6 +101,35 @@ export default function App() {
     networkRate?.state === 'invalid_interval' ? 'Invalid or stale interval' :
     networkRate?.state === 'insufficient_samples' ? 'Waiting for a second reading' :
     networkRate?.state === 'ok' ? 'Across latest two readings' : 'Rate unavailable';
+
+  async function downloadCsv() {
+    if (!token || !selected || exportBusy) return;
+    const host = selected;
+    const hours = historyHours;
+    setExportBusy(true);
+    setExportNote('');
+    setExportFailed(false);
+    try {
+      const result = await fetchHostCsv(host, token, hours);
+      const blobUrl = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'metrics-' + host + '-' + hours + 'h-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // Keep the URL valid long enough for the browser to initiate its download.
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      setExportNote(result.partial
+        ? 'Downloaded the newest 10,000 samples only. Use the API cursor for older data.'
+        : 'CSV download requested for the selected host and period.');
+    } catch (error) {
+      setExportFailed(true);
+      setExportNote(error instanceof Error ? error.message : 'CSV export failed');
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   if (!token) {
     return <main className="login-screen">
@@ -173,14 +206,22 @@ export default function App() {
           </div>
           {machine && <div className="details">
             <div className="section-heading history-heading"><div><h2>{machine.hostname} <span className="muted">/ Last {historyHours === 168 ? '7 days' : historyHours + ' hours'}</span></h2><p>CPU, memory and disk utilization over the selected interval</p></div>
-              <div className="history-periods" role="group" aria-label="History time window">
-                {([6, 24, 168] as const).map(hours =>
-                  <button key={hours} type="button" aria-pressed={historyHours === hours}
-                    className={'history-period' + (historyHours === hours ? ' active' : '')}
-                    onClick={() => setHistoryHours(hours)}>{hours === 168 ? '7d' : hours + 'h'}</button>
-                )}
+              <div className="history-actions">
+                <div className="history-periods" role="group" aria-label="History time window">
+                  {([6, 24, 168] as const).map(hours =>
+                    <button key={hours} type="button" aria-pressed={historyHours === hours}
+                      className={'history-period' + (historyHours === hours ? ' active' : '')}
+                      onClick={() => setHistoryHours(hours)}>{hours === 168 ? '7d' : hours + 'h'}</button>
+                  )}
+                </div>
+                <button className="export-button" type="button" onClick={() => void downloadCsv()}
+                  disabled={exportBusy} aria-describedby="csv-export-help">
+                  {exportBusy ? 'Preparing CSV…' : 'Export CSV'}
+                </button>
               </div>
             </div>
+            <p id="csv-export-help" className="export-hint">Raw host samples for the selected interval, newest 10,000 at most. Older pages require the API cursor.</p>
+            {exportNote && <p className="export-hint" role={exportFailed ? 'alert' : 'status'}>{exportNote}</p>}
             <div className="panel chart-panel">
               <div className="metric-strip">
                 <span><Cpu size={18}/> CPU <b>{pct(machine.cpu)}</b></span>
