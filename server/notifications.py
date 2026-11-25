@@ -95,28 +95,30 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
                     notify_mode: bool = False) -> tuple[int, int]:
     if not url:
         return 0, 0
-    stamp = int(time.time()) if now is None else now
     delivered = failed = 0
-    with db() as connection:
-        # Atomic event claims are committed before network IO. A second worker
-        # cannot select the same event during the 60s claim lease. A crashed
-        # worker leaves the claim to expire so an eligible event can retry.
-        connection.execute("BEGIN IMMEDIATE")
-        entries = connection.execute(
-            """SELECT id,node_id,metric,state,message,created_ts,attempts
-            FROM alert_events
-            WHERE sent_ts IS NULL AND attempts < 5 AND next_attempt_ts <= ?
-            ORDER BY id LIMIT 25""", (stamp,)
-        ).fetchall()
-        for event in entries:
+    opener = urllib.request.build_opener(RejectRedirects())
+    # Claim each event immediately before network IO. Claiming a batch of 25
+    # ahead of requests can outlast the 60s lease (25 * 8s > 60s), allowing
+    # a second worker to reclaim unsent batch members and duplicate delivery.
+    for _ in range(25):
+        stamp = int(time.time()) if now is None else now
+        with db() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            event = connection.execute(
+                """SELECT id,node_id,metric,state,message,created_ts,attempts
+                FROM alert_events
+                WHERE sent_ts IS NULL AND attempts < 5 AND next_attempt_ts <= ?
+                ORDER BY id LIMIT 1""", (stamp,)
+            ).fetchone()
+            if event is None:
+                break
+            attempt = int(event["attempts"]) + 1
             connection.execute(
                 """UPDATE alert_events
-                   SET attempts=attempts+1, next_attempt_ts=?
+                   SET attempts=?, next_attempt_ts=?
                    WHERE id=? AND sent_ts IS NULL""",
-                (stamp + 60, event["id"])
+                (attempt, stamp + 60, event["id"])
             )
-    opener = urllib.request.build_opener(RejectRedirects())
-    for event in entries:
         original = {key: event[key] for key in ("node_id", "metric", "state", "message", "created_ts")}
         payload = message_payload(original) if notify_mode else original
         headers = {"Content-Type": "application/json", "User-Agent": "GoreeCloud-Metrics-Notifier/0.1"}
@@ -133,18 +135,19 @@ def deliver_pending(url: str | None, token: str | None, *, now: int | None = Non
         except (OSError, ValueError, urllib.error.URLError):
             failed += 1
             with db() as connection:
-                delay = min(3600, 30 * 2 ** min(int(event["attempts"]), 6))
+                delay = min(3600, 30 * 2 ** min(attempt - 1, 6))
                 connection.execute(
-                    """UPDATE alert_events SET
-                    next_attempt_ts=? WHERE id=? AND sent_ts IS NULL""",
-                    (stamp + delay, event["id"])
+                    """UPDATE alert_events SET next_attempt_ts=?
+                       WHERE id=? AND sent_ts IS NULL AND attempts=?""",
+                    (stamp + delay, event["id"], attempt)
                 )
         else:
             delivered += 1
             with db() as connection:
                 connection.execute(
-                    "UPDATE alert_events SET sent_ts=? WHERE id=? AND sent_ts IS NULL",
-                    (stamp, event["id"])
+                    """UPDATE alert_events SET sent_ts=?
+                       WHERE id=? AND sent_ts IS NULL AND attempts=?""",
+                    (stamp, event["id"], attempt)
                 )
     return delivered, failed
 
@@ -183,7 +186,7 @@ def main() -> int:
             if args.once:
                 return 2
         if args.once:
-            break
+            return 2 if failed else 0
         for _ in range(30):
             if _STOP:
                 break

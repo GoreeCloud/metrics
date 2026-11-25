@@ -17,7 +17,7 @@ METRICS_WEBHOOK_BEARER=OPTIONAL_SECRET
 python -m server.notifications --once
 ~~~
 
-A webhook may disclose a node ID and active threshold to its recipient. **GoreeShield consent and destination privacy review are required before enabling one.** Requests use POST JSON, reject redirects, a bounded timeout, up to five claimed attempts and a bounded exponential delay. A SQLite write-locked claim reserves each pending event before outbound HTTP for 60 seconds, so concurrently running workers cannot immediately send the same event. A crashed worker's claim expires, but exhausted attempts are not retried automatically. Delivery is best-effort with bounded retries; duplicates can occur after a crash or lease expiry. A successful send is not a guaranteed end-user notification. The worker records up to 30 days of transitions. Actual integration with GoreeCloud Notify has *not* been verified.
+A webhook may disclose a node ID and active threshold to its recipient. **GoreeShield consent and destination privacy review are required before enabling one.** Requests use POST JSON, reject redirects, a bounded timeout, up to five claimed attempts and a bounded exponential delay. An atomic per-event SQLite write-locked claim reserves the next pending event just before outbound HTTP for 60 seconds, so concurrently running workers cannot immediately send the same event. A crashed worker's claim expires, but exhausted attempts are not retried automatically. Delivery is best-effort with bounded retries; duplicates can occur after a crash or lease expiry. A successful send is not a guaranteed end-user notification. The worker records up to 30 days of transitions. Actual integration with GoreeCloud Notify has *not* been verified.
 
 Current limitations: no graphical threshold editor, incident acknowledgment, rule quiet hours, alert suppression, notification history UI or multiuser Identity auth. The worker is not automatically installed, deployed or running.
 
@@ -34,3 +34,5 @@ METRICS_NOTIFY_API_TOKEN=PASTE_NOTIFY_TOKEN_LOCALLY
 ~~~
 
 The adapter refuses cleartext URLs and will reject simultaneous configuration of the generic webhook and GoreeCloud Notify. No token is stored in source. The Notify server is **not** deployed or probed automatically, and no real message delivery has been tested. GoreeShield authorization for disclosing host alert names to Notify is required. Notifications should not be treated as emergency-alert infrastructure.
+
+The worker claims events **individually**, not all 25 at the beginning of a slow batch; see [delivery-lease safety](ALERT_WORKER_SAFETY.md). Run-once exits nonzero if any attempted outbound delivery fails. These behaviors have synthetic concurrent/slow-send tests but do not establish exactly-once delivery or production Notify acceptance.
