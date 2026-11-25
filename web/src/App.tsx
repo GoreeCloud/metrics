@@ -25,6 +25,7 @@ const pct = (number?: number) => Number.isFinite(number) ? Math.round(number!) +
 export default function App() {
   const session = useRef(new RequestEpoch());
   const polling = useRef(new RequestEpoch());
+  const exportAbort = useRef<AbortController | null>(null);
   const [tokenField, setTokenField] = useState('');
   const [token, setToken] = useState('');
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -81,6 +82,14 @@ export default function App() {
   }, [refresh, token]);
 
   useEffect(() => {
+    // Abort transfers for the prior host or period, not just their UI result.
+    exportAbort.current?.abort();
+    exportAbort.current = null;
+    setExportBusy(false);
+    setExportNote('');
+  }, [selected, historyHours]);
+
+  useEffect(() => {
     if (!token || !selected) { setHistory([]); setContainers([]); setNetworkRate(null); return; }
     let active = true;
     setNetworkRate(null);
@@ -121,11 +130,13 @@ export default function App() {
     const sessionTicket = session.current.snapshot();
     const host = selected;
     const hours = historyHours;
+    const controller = new AbortController();
+    exportAbort.current = controller;
     setExportBusy(true);
     setExportNote('');
     setExportFailed(false);
     try {
-      const result = await fetchHostCsv(host, token, hours);
+      const result = await fetchHostCsv(host, token, hours, fetch, controller.signal);
       // Never start a delayed file download after logout or a new sign-in.
       if (!session.current.accepts(sessionTicket)) return;
       const blobUrl = URL.createObjectURL(result.blob);
@@ -141,16 +152,19 @@ export default function App() {
         ? 'Downloaded the newest 10,000 samples only. Use the API cursor for older data.'
         : 'CSV download requested for the selected host and period.');
     } catch (error) {
-      if (session.current.accepts(sessionTicket)) {
+      if (!controller.signal.aborted && session.current.accepts(sessionTicket)) {
         setExportFailed(true);
         setExportNote(error instanceof Error ? error.message : 'CSV export failed');
       }
     } finally {
+      if (exportAbort.current === controller) exportAbort.current = null;
       if (session.current.accepts(sessionTicket)) setExportBusy(false);
     }
   }
 
   function disconnect() {
+    exportAbort.current?.abort();
+    exportAbort.current = null;
     session.current.invalidate();
     polling.current.invalidate();
     setToken('');
