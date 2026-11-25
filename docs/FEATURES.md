@@ -29,3 +29,4 @@
 
 | Redirect-refusing agent ingest and reliable one-shot exit status | Local two-server loopback and error-path regression tests | Approved real Linux agent runtime and private TLS endpoint acceptance |
 | Opt-in node data deletion and full sample retention CLI | Synthetic isolated SQLite preview/apply tests | GoreeShield consent/backup policy and production acceptance |
+| Owner-controlled raw host CSV export with cursor pagination | Synthetic auth, cross-host, spreadsheet-injection and bounds tests | Privacy policy, large export and recovery acceptance |

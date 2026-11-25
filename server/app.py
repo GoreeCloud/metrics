@@ -1,7 +1,10 @@
 """GoreeCloud Metrics: authenticated, self-hosted metrics hub."""
 from __future__ import annotations
 
+import csv
 import hmac
+import io
+import math
 import json
 import os
 import re
@@ -401,6 +404,58 @@ def history(node_id: str, hours: int = Query(default=24, ge=1, le=168)):
             ORDER BY ts DESC LIMIT 5000
         """, (node_id, int(time.time()) - hours * 3600)).fetchall()
     return {"node_id": node_id, "samples": [dict(v) for v in reversed(rows)]}
+
+
+@app.get("/api/v1/systems/{node_id}/export.csv", dependencies=[Depends(require_admin)])
+def export_host_csv(node_id: str, hours: int = Query(default=24, ge=1, le=8760),
+                    limit: int = Query(default=1000, ge=1, le=10000),
+                    before_id: int | None = Query(default=None, ge=1),
+                    until_ts: int | None = Query(default=None, ge=1)):
+    """Bounded owner-export of raw host samples, newest first, with cursor."""
+    if not re.fullmatch(IDENTIFIER, node_id):
+        raise HTTPException(404, "Unknown system")
+    now = int(time.time())
+    if until_ts is not None and until_ts > now:
+        raise HTTPException(422, "Export window must not end in the future")
+    end = now if until_ts is None else until_ts
+    cutoff = end - hours * 3600
+    with db() as connection:
+        if connection.execute("SELECT 1 FROM systems WHERE node_id=?",
+                              (node_id,)).fetchone() is None:
+            raise HTTPException(404, "Unknown system")
+        rows = connection.execute("""
+            SELECT id, ts, cpu, memory, disk, memory_bytes, disk_bytes,
+                   rx_bytes, tx_bytes, uptime_seconds
+            FROM samples
+            WHERE node_id=? AND ts>=? AND ts<=? AND (? IS NULL OR id<?)
+            ORDER BY id DESC LIMIT ?
+        """, (node_id, cutoff, end, before_id, before_id, limit + 1)).fetchall()
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    out = io.StringIO(newline="")
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(("id", "node_id", "unix_ts", "cpu_percent", "memory_percent",
+                     "disk_percent", "memory_used_bytes", "disk_used_bytes",
+                     "rx_bytes", "tx_bytes", "uptime_seconds"))
+    for row in page:
+        # Numeric conversion never permits stored spreadsheet formulas to
+        # escape into exported cells, even if a DB file was modified outside
+        # the Metrics API.
+        floats = [float(row[key]) for key in ("cpu", "memory", "disk", "uptime_seconds")]
+        if not all(math.isfinite(v) for v in floats):
+            raise HTTPException(500, "Metrics database contains invalid numeric data")
+        writer.writerow((
+            int(row["id"]), node_id, int(row["ts"]), *floats[:3],
+            *(int(row[key]) for key in
+              ("memory_bytes", "disk_bytes", "rx_bytes", "tx_bytes")),
+            floats[3],
+        ))
+    headers = {"Content-Disposition": f'attachment; filename="metrics-{node_id}.csv"',
+               "X-Export-Until-Ts": str(end), "Cache-Control": "no-store"}
+    if has_more and page:
+        headers["X-Next-Before-Id"] = str(page[-1]["id"])
+    return PlainTextResponse(out.getvalue(), media_type="text/csv; charset=utf-8",
+                             headers=headers)
 
 
 @app.get("/api/v1/systems/{node_id}/containers",

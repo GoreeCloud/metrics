@@ -68,3 +68,6 @@ Event delivery is a bounded best-effort operation. The SQLite alert worker atomi
 
 Run the [loopback source integration fixture](LOCAL_STACK_ACCEPTANCE.md) on a trusted developer machine to exercise actual Uvicorn, agent HTTP, SQLite and authenticated reads against disposable synthetic telemetry. This does not prove production TLS, container-engine permissions, device acceptance or release readiness.
 
+## Raw telemetry portability
+
+See [owner-only bounded CSV export](DATA_PORTABILITY.md) for raw host history, stable-page cursor headers, numeric-cell protection and sharing limitations. This export is not a backup or a transactional all-systems snapshot.
