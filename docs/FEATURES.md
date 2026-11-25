@@ -22,3 +22,4 @@
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |
 | Native Flutter GoreeCloud UI Lagoon semantic tokens | Implemented from verified immutable alpha snapshot | Founder visual review, device accessibility and full native component acceptance |
 | Optional status-only bearer scope for future Mesh use | Source implemented; fail-closed tests | Real Mesh admission, Identity, policy and transport acceptance |
+| Two-key per-node agent token rollover | Source implemented, backward compatible, local fail-closed tests | Authorized service restart, key custody and real agent migration |
