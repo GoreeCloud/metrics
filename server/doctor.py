@@ -16,7 +16,7 @@ from server.app import SCHEMA_VERSION
 from server.storage_cli import existing_database
 
 CORE_TABLES = {"systems", "samples", "container_samples"}
-HISTORY_INDEXES = {"samples_node_time", "samples_time", "container_samples_node_time"}
+HISTORY_INDEXES = {"samples_node_time", "samples_node_id_desc", "samples_time", "container_samples_node_time"}
 
 
 def check(filename: str) -> dict[str, object]:

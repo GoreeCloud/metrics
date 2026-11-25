@@ -174,6 +174,10 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS samples_node_time
                 ON samples(node_id, ts DESC);
+            -- Latest host sample, counter rates and cursor-paginated exports
+            -- order by the monotonic id rather than by the timestamp.
+            CREATE INDEX IF NOT EXISTS samples_node_id_desc
+                ON samples(node_id, id DESC);
             CREATE INDEX IF NOT EXISTS samples_time ON samples(ts);
             CREATE TABLE IF NOT EXISTS container_samples (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
