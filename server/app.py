@@ -56,7 +56,7 @@ class Sample(BaseModel):
     containers: list[ContainerSample] = Field(default_factory=list, max_length=100)
 
 
-def config() -> tuple[str, dict[str, str]]:
+def config() -> tuple[str, dict[str, tuple[str, ...]]]:
     admin = os.environ.get("METRICS_ADMIN_TOKEN", "")
     if len(admin) < 32:
         raise RuntimeError("METRICS_ADMIN_TOKEN must be at least 32 characters")
@@ -66,18 +66,27 @@ def config() -> tuple[str, dict[str, str]]:
         raise RuntimeError("METRICS_AGENT_TOKENS must be a JSON object") from error
     if not isinstance(agents, dict) or not agents:
         raise RuntimeError("Configure at least one agent in METRICS_AGENT_TOKENS")
-    if any(
-        not isinstance(k, str) or not re.fullmatch(IDENTIFIER, k)
-        or not isinstance(v, str) or len(v) < 32 or hmac.compare_digest(admin, v)
-        for k, v in agents.items()
-    ):
-        raise RuntimeError("Agent IDs must be safe and agent tokens unique from admin token, minimum 32 chars")
-    if len(set(agents.values())) != len(agents):
-        raise RuntimeError("Agent tokens must be distinct")
-    return admin, agents
+    # One active token, or a two-token rotation window (old, new). No
+    # credential can be valid for two hosts or any other API privilege.
+    normalized: dict[str, tuple[str, ...]] = {}
+    seen = set()
+    for node, configured in agents.items():
+        if not isinstance(node, str) or not re.fullmatch(IDENTIFIER, node):
+            raise RuntimeError("METRICS_AGENT_TOKENS contains an invalid node identifier")
+        tokens = (configured,) if isinstance(configured, str) else configured
+        if not isinstance(tokens, (list, tuple)) or not 1 <= len(tokens) <= 2:
+            raise RuntimeError("METRICS_AGENT_TOKENS accepts one or two tokens per node")
+        for token in tokens:
+            if (not isinstance(token, str) or not 32 <= len(token) <= 1024
+                    or not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,1024}={0,2}", token)
+                    or hmac.compare_digest(admin, token) or token in seen):
+                raise RuntimeError("Agent tokens must be unique, strong and safe")
+            seen.add(token)
+        normalized[node] = tuple(tokens)
+    return admin, normalized
 
 
-def configured_status_token(admin: str, agents: dict[str, str]) -> str | None:
+def configured_status_token(admin: str, agents: dict[str, tuple[str, ...]]) -> str | None:
     """Third opt-in bearer credential for a narrow, redacted integration status."""
     token = os.environ.get("METRICS_STATUS_TOKEN", "")
     if not token:
@@ -85,7 +94,8 @@ def configured_status_token(admin: str, agents: dict[str, str]) -> str | None:
     if (not 32 <= len(token) <= 1024
             or not re.fullmatch(r"[A-Za-z0-9._~+/-]{32,1024}={0,2}", token)
             or hmac.compare_digest(token, admin)
-            or any(hmac.compare_digest(token, agent) for agent in agents.values())):
+            or any(hmac.compare_digest(token, candidate)
+                   for tokens in agents.values() for candidate in tokens)):
         raise RuntimeError("METRICS_STATUS_TOKEN must be distinct and 32-1024 safe characters")
     return token
 
@@ -221,8 +231,12 @@ def require_admin(request: Request, authorization: Annotated[str | None, Header(
 
 
 def check_agent(request: Request, sample: Sample, key: str | None) -> None:
-    expected = request.app.state.agents.get(sample.node_id, "")
-    if not expected or not key or not hmac.compare_digest(key, expected):
+    candidates = request.app.state.agents.get(sample.node_id, ())
+    # A valid credential for another system never authorizes this node.
+    valid = False
+    for expected in candidates:
+        valid |= hmac.compare_digest(key or "", expected)
+    if not valid:
         raise HTTPException(401, "Unauthorized")
 
 
