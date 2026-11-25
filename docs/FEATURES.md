@@ -33,3 +33,4 @@
 | Counter-safe authenticated network throughput rate API | Source and reboot/stale/authorization synthetic tests | Real host counter and client chart acceptance |
 | Redacted, read-only SQLite health CLI | Source and synthetic DB integrity/index/permission tests | Authorized operational acceptance and private log custody |
 | Owner-controlled raw host CSV export with cursor pagination | Synthetic auth, cross-host, spreadsheet-injection and bounds tests | Privacy policy, large export and recovery acceptance |
+| Explicit bounded browser CSV download for a selected host | Stream-bound and token-safe Node tests; TypeScript/Vite build | Real browser download, partial-page UX and privacy acceptance |
