@@ -386,9 +386,19 @@ def systems():
 
 
 @app.get("/api/v1/systems/{node_id}/history", dependencies=[Depends(require_admin)])
-def history(node_id: str, hours: int = Query(default=24, ge=1, le=168)):
+def history(node_id: str, hours: int = Query(default=24, ge=1, le=168),
+            points: int = Query(default=400, ge=24, le=1000)):
+    """Full-window aggregation into bounded chronological chart buckets.
+
+    Unlike truncating to the most recent 5,000 raw samples, all samples in
+    the requested interval contribute to one of <= points SQL groups. The
+    database never materializes unbounded raw telemetry in Python.
+    """
     if not re.fullmatch(IDENTIFIER, node_id):
         raise HTTPException(404, "Unknown system")
+    now = int(time.time())
+    cutoff = now - hours * 3600
+    bucket_seconds = max(1, (hours * 3600 + points) // points)
     with db() as connection:
         exists = connection.execute(
             "SELECT 1 FROM systems WHERE node_id=?", (node_id,)
@@ -396,11 +406,22 @@ def history(node_id: str, hours: int = Query(default=24, ge=1, le=168)):
         if not exists:
             raise HTTPException(404, "Unknown system")
         rows = connection.execute("""
-            SELECT ts,cpu,memory,disk,memory_bytes,disk_bytes,rx_bytes,tx_bytes,uptime_seconds
-            FROM samples WHERE node_id=? AND ts>=?
-            ORDER BY ts DESC LIMIT 5000
-        """, (node_id, int(time.time()) - hours * 3600)).fetchall()
-    return {"node_id": node_id, "samples": [dict(v) for v in reversed(rows)]}
+            SELECT MAX(ts) AS ts,
+                   ROUND(AVG(cpu), 3) AS cpu,
+                   ROUND(AVG(memory), 3) AS memory,
+                   ROUND(AVG(disk), 3) AS disk,
+                   CAST(AVG(memory_bytes) AS INTEGER) AS memory_bytes,
+                   CAST(AVG(disk_bytes) AS INTEGER) AS disk_bytes,
+                   MAX(rx_bytes) AS rx_bytes,
+                   MAX(tx_bytes) AS tx_bytes,
+                   MAX(uptime_seconds) AS uptime_seconds,
+                   COUNT(*) AS sample_count
+            FROM samples WHERE node_id=? AND ts>=? AND ts<=?
+            GROUP BY CAST((ts - ?) / ? AS INTEGER)
+            ORDER BY ts DESC LIMIT ?
+        """, (node_id, cutoff, now, cutoff, bucket_seconds, points)).fetchall()
+    return {"node_id": node_id, "bucket_seconds": bucket_seconds,
+            "samples": [dict(row) for row in reversed(rows)]}
 
 
 @app.get("/api/v1/systems/{node_id}/containers",

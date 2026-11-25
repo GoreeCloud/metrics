@@ -26,6 +26,6 @@
 | Two-key per-node agent token rollover | Source implemented, backward compatible, local fail-closed tests | Authorized service restart, key custody and real agent migration |
 | Size- and time-bounded opt-in container CLI | Source implemented and tested with synthetic processes | Real Podman/Docker compatibility, permissions and running-container tests |
 | SQLite schema version 1 and fail-closed legacy compatibility | Fresh/legacy/future synthetic migration tests | Approved future migration framework, production rehearsals and rollback |
-
 | Redirect-refusing agent ingest and reliable one-shot exit status | Local two-server loopback and error-path regression tests | Approved real Linux agent runtime and private TLS endpoint acceptance |
 | Opt-in node data deletion and full sample retention CLI | Synthetic isolated SQLite preview/apply tests | GoreeShield consent/backup policy and production acceptance |
+| Bounded full-window aggregate history and 24–1000 point resolution | SQLite buckets; 8,000-row synthetic regression tests | Realistic scale/load, charts and long-window acceptance |
