@@ -115,14 +115,23 @@ def db() -> Iterator[sqlite3.Connection]:
     if path.is_symlink():
         raise OSError("Metrics database file must not be a symlink")
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    fresh = not path.exists()
+    # Create a new hub file atomically at owner-only 0600 from the first
+    # filesystem write, even if the operator's umask is unexpectedly open.
+    # Never chmod an existing database or overwrite a concurrent initializer.
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags, 0o600)
+    except FileExistsError:
+        if path.is_symlink():
+            raise OSError("Metrics database file must not be a symlink") from None
+    else:
+        os.close(fd)
     connection = sqlite3.connect(path, timeout=10)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys=ON")
     connection.execute("PRAGMA busy_timeout=10000")
     try:
-        if fresh:
-            os.chmod(path, 0o600)
         yield connection
         connection.commit()
     except Exception:
