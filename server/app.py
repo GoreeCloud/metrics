@@ -461,16 +461,18 @@ def export_host_csv(node_id: str, hours: int = Query(default=24, ge=1, le=8760),
     for row in page:
         # Numeric conversion never permits stored spreadsheet formulas to
         # escape into exported cells, even if a DB file was modified outside
-        # the Metrics API.
-        floats = [float(row[key]) for key in ("cpu", "memory", "disk", "uptime_seconds")]
-        if not all(math.isfinite(v) for v in floats):
-            raise HTTPException(500, "Metrics database contains invalid numeric data")
-        writer.writerow((
-            int(row["id"]), node_id, int(row["ts"]), *floats[:3],
-            *(int(row[key]) for key in
-              ("memory_bytes", "disk_bytes", "rx_bytes", "tx_bytes")),
-            floats[3],
-        ))
+        # the Metrics API. Never echo invalid stored cell contents in errors.
+        try:
+            floats = [float(row[key]) for key in ("cpu", "memory", "disk", "uptime_seconds")]
+            ints = [int(row[key]) for key in (
+                "memory_bytes", "disk_bytes", "rx_bytes", "tx_bytes"
+            )]
+            id_value, ts_value = int(row["id"]), int(row["ts"])
+            if not all(math.isfinite(v) for v in floats):
+                raise ValueError("non-finite database value")
+        except (ValueError, TypeError, OverflowError):
+            raise HTTPException(500, "Metrics database contains invalid numeric data") from None
+        writer.writerow((id_value, node_id, ts_value, *floats[:3], *ints, floats[3]))
     headers = {"Content-Disposition": f'attachment; filename="metrics-{node_id}.csv"',
                "X-Export-Until-Ts": str(end), "Cache-Control": "no-store"}
     if has_more and page:
