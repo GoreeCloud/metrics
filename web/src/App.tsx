@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, ArrowDown, ArrowUp, Bell, CircleDot, Cpu, HardDrive, LayoutDashboard, LogOut, MemoryStick, RefreshCw, Server, ShieldCheck } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchHostCsv } from './hostExport';
 import { RequestEpoch } from './requestEpoch';
 
@@ -11,6 +10,8 @@ type ContainerSnapshot = { name: string; cpu: number; memory: number; rx_bytes: 
 type AlertTransition = { id: number; node_id: string; metric: string; state: string; message: string; created_ts: number };
 type NetworkRate = { node_id: string; state: 'ok' | 'insufficient_samples' | 'counter_reset' | 'invalid_interval'; latest_ts: number | null; interval_seconds: number | null; rx_bytes_per_second: number | null; tx_bytes_per_second: number | null };
 type View = 'overview' | 'alerts';
+
+const HostHistoryChart = lazy(() => import('./HostHistoryChart'));
 
 const size = (bytes = 0) => {
   if (!Number.isFinite(bytes)) return '—';
@@ -274,23 +275,9 @@ export default function App() {
                 <span><MemoryStick size={18}/> Memory <b>{pct(machine.memory)}</b></span>
                 <span><HardDrive size={18}/> Disk <b>{pct(machine.disk)}</b></span>
               </div>
-              {history.length ? <div className="chart" aria-label={'Time series chart, last ' + historyHours + ' hours'}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={history}>
-                    <defs>
-                      <linearGradient id="cpuFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00697A" stopOpacity={0.24}/><stop offset="100%" stopColor="#00697A" stopOpacity={0}/></linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--outline-soft)"/>
-                    <XAxis dataKey="ts" tickFormatter={(ts: number) => new Date(ts * 1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} tickLine={false} axisLine={false} minTickGap={28}/>
-                    <YAxis domain={[0,100]} tickFormatter={(n: number) => n+'%'} tickLine={false} axisLine={false} width={42}/>
-                    <Tooltip labelFormatter={value => new Date(Number(value) * 1000).toLocaleString()} formatter={value => pct(Number(value))}/>
-                    <Legend/>
-                    <Area type="monotone" dataKey="cpu" name="CPU" stroke="#00697A" strokeWidth={2} fill="url(#cpuFill)" dot={false}/>
-                    <Area type="monotone" dataKey="memory" name="Memory" stroke="#5146C8" strokeWidth={2} fill="transparent" dot={false}/>
-                    <Area type="monotone" dataKey="disk" name="Disk" stroke="#A43F1D" strokeWidth={2} fill="transparent" dot={false}/>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div> : <div className="empty"><Activity size={30}/><p>Waiting for historical samples</p></div>}
+              {history.length ? <Suspense fallback={<div className="chart chart-loading" role="status">Preparing history chart…</div>}>
+                <HostHistoryChart history={history} hours={historyHours}/>
+              </Suspense> : <div className="empty"><Activity size={30}/><p>Waiting for historical samples</p></div>}
             </div>
             <div className="network-grid">
               <div className="network-card"><ArrowDown size={20}/><div><span>Received since boot</span><strong>{size(machine.rx_bytes)}</strong></div></div>
