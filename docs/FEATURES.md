@@ -30,3 +30,4 @@
 | Opt-in node data deletion and full sample retention CLI | Synthetic isolated SQLite preview/apply tests | GoreeShield consent/backup policy and production acceptance |
 | Bounded full-window aggregate history and 24–1000 point resolution | SQLite buckets; 8,000-row synthetic regression tests | Realistic scale/load, charts and long-window acceptance |
 | Counter-safe authenticated network throughput rate API | Source and reboot/stale/authorization synthetic tests | Real host counter and client chart acceptance |
+| Owner-controlled raw host CSV export with cursor pagination | Synthetic auth, cross-host, spreadsheet-injection and bounds tests | Privacy policy, large export and recovery acceptance |
