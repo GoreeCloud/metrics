@@ -20,6 +20,9 @@ from server.alert_rules import AlertRules, evaluate
 
 IDENTIFIER = r"^[a-z0-9][a-z0-9-]{0,62}$"
 RETENTION_DAYS = 30
+SCHEMA_VERSION = 1
+# Version 1 records the historical host/container tables and indexes.
+# No destructive or automatic migration is performed for unknown versions.
 
 
 def retention_days() -> int:
@@ -124,6 +127,31 @@ def db() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with db() as connection:
         connection.execute("PRAGMA journal_mode=WAL")
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        if version > SCHEMA_VERSION or version < 0:
+            raise RuntimeError("Metrics SQLite schema is newer or unsupported; refuse to modify")
+        existing = {row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )}
+        expected = {
+            "systems": {"node_id", "hostname", "first_seen", "last_seen"},
+            "samples": {"id", "node_id", "ts", "cpu", "memory", "disk",
+                        "memory_bytes", "disk_bytes", "rx_bytes",
+                        "tx_bytes", "uptime_seconds"},
+            "container_samples": {"id", "node_id", "ts", "name", "cpu",
+                                  "memory", "rx_bytes", "tx_bytes"},
+        }
+        # A partial core schema is never silently replaced; the operator
+        # must restore a known-good backup or perform a reviewed migration.
+        if bool("systems" in existing) != bool("samples" in existing):
+            raise RuntimeError("Incomplete Metrics core schema; manual recovery required")
+        for table, required_columns in expected.items():
+            if table in existing:
+                actual = {row[1] for row in connection.execute(
+                    f"PRAGMA table_info({table})"
+                )}
+                if not required_columns.issubset(actual):
+                    raise RuntimeError("Unsupported Metrics SQLite table layout")
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS systems (
                 node_id TEXT PRIMARY KEY,
@@ -154,6 +182,11 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS container_samples_node_time
                 ON container_samples(node_id, ts DESC);
         """)
+        # SQLite PRAGMA user_version is owner-local schema metadata. Old
+        # unversioned databases with the verified core table layout are
+        # upgraded in place without dropping any samples.
+        if version == 0:
+            connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
 
 @asynccontextmanager
