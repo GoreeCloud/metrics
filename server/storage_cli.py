@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -72,17 +73,78 @@ def guarded_copy(source: str, target: str) -> dict[str, object]:
 
 
 def retention(filename: str, days: int, apply: bool = False, now: int | None = None) -> int:
+    """Host and container history share one explicit retention preview/apply."""
     if not 1 <= days <= 365:
         raise ValueError("Retention period must be 1–365 days")
     path = existing_database(filename)
     inspect(str(path))
-    cutoff = int(time.time()) if now is None else now
-    cutoff -= days * 86400
-    with sqlite3.connect(path) as connection:
-        count = connection.execute("SELECT COUNT(*) FROM samples WHERE ts < ?", (cutoff,)).fetchone()[0]
+    cutoff = (int(time.time()) if now is None else now) - days * 86400
+    uri = f"file:{quote(path.as_posix(), safe='/')}?mode={'rw' if apply else 'ro'}"
+    with sqlite3.connect(uri, uri=True) as connection:
         if apply:
+            connection.execute("BEGIN IMMEDIATE")
+        tables = {r[0] for r in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )}
+        count = connection.execute(
+            "SELECT COUNT(*) FROM samples WHERE ts < ?", (cutoff,)
+        ).fetchone()[0]
+        if "container_samples" in tables:
+            count += connection.execute(
+                "SELECT COUNT(*) FROM container_samples WHERE ts < ?", (cutoff,)
+            ).fetchone()[0]
+        if apply:
+            if "container_samples" in tables:
+                connection.execute("DELETE FROM container_samples WHERE ts < ?", (cutoff,))
             connection.execute("DELETE FROM samples WHERE ts < ?", (cutoff,))
         return count
+
+
+def forget_node(filename: str, node_id: str, apply: bool = False) -> dict[str, object]:
+    """Operator-only preview and atomic erasure of an explicitly selected node."""
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", node_id):
+        raise ValueError("Invalid node identifier")
+    path = existing_database(filename)
+    inspect(str(path))
+    uri = f"file:{quote(path.as_posix(), safe='/')}?mode={'rw' if apply else 'ro'}"
+    with sqlite3.connect(uri, uri=True) as connection:
+        connection.execute("PRAGMA foreign_keys=ON")
+        if apply:
+            connection.execute("BEGIN IMMEDIATE")
+        tables = {row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )}
+        count = connection.execute(
+            "SELECT COUNT(*) FROM systems WHERE node_id=?", (node_id,)
+        ).fetchone()[0]
+        if count != 1:
+            raise ValueError("Node not registered in database")
+        to_count = {
+            "samples": "samples",
+            "container_samples": "container_samples",
+            "alert_state": "alert_state",
+            "alert_events": "alert_events",
+        }
+        counts = {
+            name: connection.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE node_id=?", (node_id,)
+            ).fetchone()[0] if table in tables else 0
+            for name, table in to_count.items()
+        }
+        if apply:
+            # Clear dependent rows explicitly, including older databases
+            # without foreign keys and separate alert-state tables.
+            for name, table in to_count.items():
+                if table in tables:
+                    connection.execute(f"DELETE FROM {table} WHERE node_id=?", (node_id,))
+            connection.execute("DELETE FROM systems WHERE node_id=?", (node_id,))
+            if connection.execute(
+                "SELECT COUNT(*) FROM systems WHERE node_id=?", (node_id,)
+            ).fetchone()[0]:
+                raise sqlite3.DatabaseError("Node erasure did not complete")
+        return {"node_id": node_id, "matching_systems": count,
+                **{f"matching_{name}": value for name, value in counts.items()},
+                "applied": apply}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -98,6 +160,11 @@ def main(argv: list[str] | None = None) -> int:
     prune = commands.add_parser("retention", help="Preview retention purge, or explicitly apply it")
     prune.add_argument("--days", type=int, default=30)
     prune.add_argument("--apply", action="store_true")
+    forget = commands.add_parser("forget-node",
+                                 help="Preview one node's host, container and alert data erasure")
+    forget.add_argument("--node-id", required=True)
+    forget.add_argument("--apply", action="store_true",
+                        help="Irreversibly erase this registered node and associated data")
     args = parser.parse_args(argv)
     try:
         if args.operation == "verify":
@@ -106,9 +173,13 @@ def main(argv: list[str] | None = None) -> int:
             status = guarded_copy(args.database, args.destination)
         elif args.operation == "restore-rehearsal":
             status = guarded_copy(args.backup_file, args.destination)
-        else:
+        elif args.operation == "retention":
             amount = retention(args.database, args.days, args.apply)
             status = {"matching_samples": amount, "applied": args.apply, "retention_days": args.days}
+        elif args.operation == "forget-node":
+            status = forget_node(args.database, args.node_id, args.apply)
+        else:
+            raise ValueError("Unknown storage operation")
         for key, value in status.items():
             print(f"{key}: {value}")
         return 0

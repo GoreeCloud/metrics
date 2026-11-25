@@ -28,3 +28,4 @@
 | SQLite schema version 1 and fail-closed legacy compatibility | Fresh/legacy/future synthetic migration tests | Approved future migration framework, production rehearsals and rollback |
 
 | Redirect-refusing agent ingest and reliable one-shot exit status | Local two-server loopback and error-path regression tests | Approved real Linux agent runtime and private TLS endpoint acceptance |
+| Opt-in node data deletion and full sample retention CLI | Synthetic isolated SQLite preview/apply tests | GoreeShield consent/backup policy and production acceptance |
