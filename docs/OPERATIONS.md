@@ -63,3 +63,8 @@ See [alert rules and opt-in worker](ALERTS.md). The notifier is an operator-mana
 ## Notification worker delivery claims
 
 Event delivery is a bounded best-effort operation. The SQLite alert worker atomically reserves a batch with 60-second claims **before** opening HTTPS connections, limiting duplicate delivery from concurrent worker instances; expired claims can be retried after a crash. Multiple workers are not needed for development, and leases do not guarantee exactly-once delivery. Keep webhook destinations consent-approved and use idempotency at the receiver where available.
+
+## Isolated real HTTP acceptance
+
+Run the [loopback source integration fixture](LOCAL_STACK_ACCEPTANCE.md) on a trusted developer machine to exercise actual Uvicorn, agent HTTP, SQLite and authenticated reads against disposable synthetic telemetry. This does not prove production TLS, container-engine permissions, device acceptance or release readiness.
+
