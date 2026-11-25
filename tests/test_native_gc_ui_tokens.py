@@ -22,16 +22,23 @@ def test_token_snapshot_has_verified_provenance():
     assert meta["upstreamCommit"] == "be8b819748d1ef0f6b2d3e786f4b22864cb3d07d"
 
 
-def test_dart_bridge_is_reproducible_and_used():
+def test_dart_bridge_is_reproducible_and_canonical_theme_is_consumed():
     result = subprocess.run(
         ["python3", "scripts/generate_flutter_gc_ui.py", "--check"],
         cwd=ROOT, capture_output=True, text=True, timeout=10,
     )
     assert result.returncode == 0, result.stderr
+    # Historical Lagoon token export remains immutable and checkable, but the
+    # current Flutter UI consumes the reviewed local shared source adapter.
     dart = OUTPUT.read_text()
     flutter_app = (ROOT / "apps/native/lib/main.dart").read_text()
-    assert "GoreeCloudUIColors.forBrightness(brightness)" in flutter_app
-    assert "scaffoldBackgroundColor: roles.canvas" in flutter_app
+    theme = (ROOT / "apps/native/vendor/gc_ui_expressive/lib/goreecloud_ui_expressive.dart").read_text()
+    provenance = (ROOT / "apps/native/vendor/gc_ui_expressive/UPSTREAM.md").read_text()
+    assert "GoreeCloudFlutterTheme.build" in flutter_app
+    assert "GoreeAccent.lagoon" in flutter_app
+    assert "GoreeCloudPalette.forAppearance" in theme
+    assert "scaffoldBackgroundColor: c.canvas" in theme
+    assert "1c7e6194c9225b91f04177ea1b1521037d172d1c" in provenance
     assert "Color(0xFF00697A)" in dart
     assert "Color(0xFF8BE7F1)" in dart
     assert "0xFF0D121D" not in flutter_app

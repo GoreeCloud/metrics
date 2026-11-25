@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'gc_ui_colors.dart';
+import 'package:goreecloud_ui_expressive/goreecloud_ui_expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,37 +10,11 @@ class MetricsApp extends StatelessWidget {
   const MetricsApp({super.key});
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness brightness) {
-      final roles = GoreeCloudUIColors.forBrightness(brightness);
-      final scheme = ColorScheme.fromSeed(
-        seedColor: roles.brand,
-        surface: roles.surface,
-        brightness: brightness,
-      ).copyWith(
-        primary: roles.brand,
-        onPrimary: roles.onBrand,
-        primaryContainer: roles.brandContainer,
-        onPrimaryContainer: roles.onBrandContainer,
-        surface: roles.surface,
-        onSurface: roles.text,
-        outline: roles.outline,
-        outlineVariant: roles.outlineSoft,
-        error: roles.negative,
-        onError: roles.onNegative,
-      );
-      return ThemeData(
-        colorScheme: scheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: roles.canvas,
-        cardTheme: CardTheme(
-          color: scheme.surface,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(GoreeCloudUIColors.radiusMedium)),
-        ),
-      );
-    }
+    ThemeData theme(Brightness brightness) =>
+        GoreeCloudFlutterTheme.build(
+          brightness: brightness,
+          accent: GoreeAccent.lagoon,
+        );
 
     return MaterialApp(
       title: 'GoreeCloud Metrics',

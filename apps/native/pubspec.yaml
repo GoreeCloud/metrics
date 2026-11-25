@@ -8,6 +8,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.3.0
+  goreecloud_ui_expressive:
+    path: vendor/gc_ui_expressive
 dev_dependencies:
   flutter_test:
     sdk: flutter
