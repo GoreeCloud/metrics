@@ -8,8 +8,8 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 
 - Hub: authenticated per-agent ingest, strict validation, configurable 1–365-day SQLite history (default 30 days), basic per-node throttle, online/offline status and thresholds, historical reads, authenticated Prometheus-format endpoint, minimal health probe.
 - Host agent: opt-in CPU, RAM, disk, network bytes-since-boot, uptime and hostname collection over verified HTTPS (except localhost HTTP). Experimental rootless Podman or explicitly approved Docker container snapshots are disabled by default.
-- Web: React/Vite with Recharts historical charts, current indicators, optional container snapshot tables and alert-transition history, and responsive GoreeCloud UI Lagoon source tokens.
-- Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history, optional container snapshots, alert-transition history and current indicators. Tokens held in app memory only. The Flutter theme now imports a pinned source copy of the **canonical GoreeCloud UI Flutter Material 3 expressive-equivalent adapter** (Lagoon preset, system light/dark). The previous generated Lagoon snapshot remains for independent source-token parity verification; the app no longer creates a separate local Material theme.
+- Web: React/Vite with deferred Recharts history visualization (6h/24h/7d), counter-safe network-rate cards, current indicators, optional container snapshot and alert-transition views, and explicit, bounded administrator-only CSV download. Uses pinned GoreeCloud UI Lagoon source tokens; privileged JSON requests have 4 MiB/12-second bounds and private CSV transfers abort on sign-out or host/window change.
+- Linux / Android: Flutter with native Linux and Android runners, host list, utilization, selectable 6h/24h/7d CPU history, counter-safe network rates, optional container snapshots, alert-transition history and current indicators. Administrator tokens remain in app memory only; JSON transport refuses redirects, limits responses to 4 MiB and enforces an overall body deadline. The Flutter theme now imports a pinned source copy of the **canonical GoreeCloud UI Flutter Material 3 expressive-equivalent adapter** (Lagoon preset, system light/dark). The previous generated Lagoon snapshot remains for independent source-token parity verification; the app no longer creates a separate local Material theme.
 - Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
 **Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, release-signed APK, approved Linux package installation, production backup/restore acceptance or production deployment.
@@ -86,6 +86,7 @@ The separate `python -m server.notifications` process records deduplicated firin
 | GET | /api/v1/systems | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/history?hours=24 | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/network-rate | Admin Bearer token; derived two-sample RX/TX bytes/sec |
+| GET | /api/v1/systems/{node_id}/export.csv?hours=24&limit=1000 | Admin Bearer token; bounded per-host raw CSV with before_id/until_ts pagination |
 | GET | /api/v1/systems/{node_id}/containers | Admin Bearer token |
 | GET | /api/v1/config | Admin Bearer token; nonsecret retention and alert settings |
 | GET | /api/v1/alerts | Admin Bearer token |

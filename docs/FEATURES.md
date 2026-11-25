@@ -14,7 +14,6 @@
 | Native container snapshot / alert-transition views | Implemented in Flutter source | API integration and physical-device acceptance |
 | Flutter Android client | CI debug APK inspected; build/ABI metadata and debug signature verified | Physical-device install and release signing |
 | Docker and Podman read-only container snapshots | Implemented, disabled by default | Real running-container validation and explicit Docker permission review |
-| Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | Authorized real delivery and service acceptance |
 | GoreeCloud Notify topic-publish adapter | Implemented and synthetically tested | Real HTTPS service auth, delivery and privacy acceptance |
 | In-app alert editor / mobile push delivery | Not implemented | Privacy and delivery review |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
@@ -37,3 +36,8 @@
 | Native Flutter 6h/24h/7d chart controls and counter-safe network rate cards | Flutter analyzer, pure-Dart and widget tests | Linux/Android live transport, accessibility and physical-device acceptance |
 | Authenticated client session-generation guards (React and Flutter) | Source unit tests; Web build and Flutter analyzer/widgets | Real-browser logout race, Android and Linux session-switch acceptance |
 | Lazy-loaded Recharts history visualization | Node source contract tests and Vite split bundle (245 KiB initial JS) | Browser runtime/performance and assistive-technology acceptance |
+| Bounded authenticated browser JSON transport (4 MiB, 12-second request deadline) | Streaming and failure-path TypeScript tests; web CI build | Browser networking, reverse-proxy and production-load acceptance |
+| Composite SQLite host/latest-sample index | 12,000 synthetic rows, query-plan and non-destructive adoption tests | Real database index creation, capacity/lock review and rollback rehearsal |
+| Fail-closed SQLite storage identity and symlink admission | Synthetic unrelated, orphan, partial-v1 and symlink database preservation tests | Verified owner recovery and approved production cutover |
+| Native owner JSON total-body deadline and stream cancellation | Flutter analyzer, widget and synthetic trickle-stream cancellation tests | Real TLS/OS timeout and device transport acceptance |
+| Active browser CSV transfer abort on logout or selection change | Synthetic streaming abort tests, session-generation checks and web build | Supported-browser and GoreeShield export/retention acceptance |
