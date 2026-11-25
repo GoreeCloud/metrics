@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 import 'gc_ui_colors.dart';
+import 'api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -78,13 +78,7 @@ class _MetricsHomeState extends State<MetricsHome> {
   }
 
   Future<dynamic> getData(String path) async {
-    final response = await client.get(Uri.parse(hub! + path), headers: {
-      'Authorization': 'Bearer ${token!}'
-    }).timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200) {
-      throw Exception('Hub request failed (${response.statusCode})');
-    }
-    return jsonDecode(response.body);
+    return fetchMetricsJson(client, Uri.parse(hub! + path), token!);
   }
 
   List<Map<String, dynamic>> objects(dynamic value) =>
