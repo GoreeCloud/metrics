@@ -25,3 +25,4 @@
 | Pre-parser authenticated 64 KiB ingest body limit | Implemented with synthetic admission tests | Trusted edge connection/capacity controls and production load acceptance |
 | Two-key per-node agent token rollover | Source implemented, backward compatible, local fail-closed tests | Authorized service restart, key custody and real agent migration |
 | Size- and time-bounded opt-in container CLI | Source implemented and tested with synthetic processes | Real Podman/Docker compatibility, permissions and running-container tests |
+| Redirect-refusing agent ingest and reliable one-shot exit status | Local two-server loopback and error-path regression tests | Approved real Linux agent runtime and private TLS endpoint acceptance |

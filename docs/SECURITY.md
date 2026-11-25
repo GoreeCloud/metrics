@@ -33,3 +33,7 @@ A 64 KiB streamed-body gate rejects unauthenticated, oversized or wrong-content-
 ### Controlled agent credential rollover
 
 Each node may temporarily permit a maximum of two unique agent bearer tokens during an operator-managed key rotation. Previous single-secret mappings remain valid. Distinct admin and status scopes are required. Rotation requires a controlled restart; see [credential-rotation guide](AGENT_TOKEN_ROTATION.md). No identity provider or automatic key lifecycle is implemented.
+
+### Agent destination and one-shot result
+
+Agent ingestion refuses HTTP redirects so credentials are not forwarded to a newly selected origin, and --once exits nonzero when the hub does not accept the sample. Outbound logs avoid raw URLs, tokens and response content; see [agent delivery safety](AGENT_DELIVERY_SAFETY.md). TLS acceptance and production network tests remain outstanding.
