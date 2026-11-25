@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sqlite3
+from urllib.parse import urlsplit
 from datetime import datetime, timezone
 import time
 from contextlib import asynccontextmanager, contextmanager
@@ -205,7 +206,39 @@ app = FastAPI(
     title="GoreeCloud Metrics API", version="0.1.0",
     docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
 )
-origins = [v.strip() for v in os.environ.get("METRICS_ALLOWED_ORIGINS", "").split(",") if v.strip()]
+def configured_allowed_origins() -> list[str]:
+    """Fail closed on wildcard, cleartext remote or malformed owner origins."""
+    raw = os.environ.get("METRICS_ALLOWED_ORIGINS", "")
+    if not raw.strip():
+        return []
+    origins: list[str] = []
+    for value in raw.split(","):
+        origin = value.strip()
+        if not origin or len(origin) > 512 or any(char.isspace() for char in origin):
+            raise ValueError("METRICS_ALLOWED_ORIGINS contains an invalid origin")
+        try:
+            parsed = urlsplit(origin)
+            port = parsed.port
+        except ValueError as exc:
+            raise ValueError("METRICS_ALLOWED_ORIGINS has an invalid host or port") from exc
+        is_loopback = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        if (parsed.scheme not in ("https", "http")
+                or (parsed.scheme == "http" and not is_loopback)
+                or not parsed.netloc or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or parsed.path or parsed.query or parsed.fragment
+                or not (re.fullmatch(r"[A-Za-z0-9.-]{1,253}", parsed.hostname)
+                        or (parsed.hostname == "::1" and parsed.netloc.startswith("[")))
+                or (port is not None and not 1 <= port <= 65535)):
+            raise ValueError("METRICS_ALLOWED_ORIGINS requires an exact HTTPS origin or loopback HTTP")
+        if origin not in origins:
+            origins.append(origin)
+    if len(origins) > 32:
+        raise ValueError("METRICS_ALLOWED_ORIGINS supports at most 32 explicit origins")
+    return origins
+
+
+origins = configured_allowed_origins()
 if origins:
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"],
                        allow_headers=["Authorization"])
