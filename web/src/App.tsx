@@ -32,7 +32,7 @@ export default function App() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const request = useCallback(async (path: string) => {
-    const result = await fetch(path, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
+    const result = await fetch(path, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store', redirect: 'error' });
     if (!result.ok) throw new Error(result.status === 401 ? 'Invalid administrator token' : 'API error (' + result.status + ')');
     return result.json();
   }, [token]);
