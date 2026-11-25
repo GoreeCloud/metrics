@@ -12,7 +12,7 @@ A self-hosted infrastructure monitoring platform: Python/FastAPI hub, low-privil
 - Linux / Android: Flutter with native Linux and Android runners, host list, utilization, CPU history, optional container snapshots, alert-transition history and current indicators. Tokens held in app memory only. The Flutter theme now imports a pinned source copy of the **canonical GoreeCloud UI Flutter Material 3 expressive-equivalent adapter** (Lagoon preset, system light/dark). The previous generated Lagoon snapshot remains for independent source-token parity verification; the app no longer creates a separate local Material theme.
 - Optional deployments: systemd host agent and local-loopback Docker Compose hub; development CI and tests. Android debug APK and Linux bundle artifact uploads are configured in CI. These are development artifacts, not published releases.
 
-**Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, signed APK, Linux installer, production backup/restore acceptance or production deployment.
+**Not implemented:** container runtime controls, native mobile push delivery, in-app alert settings, agent enrollment UI, multiple administrator accounts/OIDC, verified centralized Identity/Mesh/Wardveil integrations, release-signed APK, approved Linux package installation, production backup/restore acceptance or production deployment.
 
 ## Local development setup
 
@@ -67,7 +67,7 @@ A generated native runner does not prove hardware acceptance. On physical Androi
 
 ## Consistent SQLite backup and recovery rehearsal
 
-The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, consistent owner-only live snapshots, non-overwriting restore rehearsals and dry-run-first retention. See [storage recovery](docs/STORAGE_RECOVERY.md).
+The development-only `python -m server.storage_cli` utility provides read-only database integrity checks, consistent owner-only live snapshots, non-overwriting restore rehearsals and dry-run-first retention. The separate `python -m server.doctor` utility provides strictly read-only, redacted database readiness checks. See [storage recovery](docs/STORAGE_RECOVERY.md) and [storage diagnostics](docs/STORAGE_DIAGNOSTICS.md).
 
 ## Container telemetry (opt-in)
 
