@@ -20,4 +20,5 @@
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | SQLite backup and isolated restore-rehearsal CLI | Implemented with tests | Independent production recovery acceptance |
 | Production deployment and restore rehearsal | Not implemented | Operations acceptance |
+| Native Flutter GoreeCloud UI Lagoon semantic tokens | Implemented from verified immutable alpha snapshot | Founder visual review, device accessibility and full native component acceptance |
 | Optional status-only bearer scope for future Mesh use | Source implemented; fail-closed tests | Real Mesh admission, Identity, policy and transport acceptance |
