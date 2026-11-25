@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'api_client.dart';
+import 'session_epoch.dart';
 import 'package:goreecloud_ui_expressive/goreecloud_ui_expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -70,6 +71,7 @@ class _MetricsHomeState extends State<MetricsHome> {
   final hubField = TextEditingController();
   final tokenField = TextEditingController();
   final client = http.Client();
+  final sessionEpoch = MetricsSessionEpoch();
   String? hub, token, message, selected;
   bool busy = false;
   List<Map<String, dynamic>> machines = [], alerts = [], samples = [];
@@ -80,6 +82,7 @@ class _MetricsHomeState extends State<MetricsHome> {
 
   @override
   void dispose() {
+    sessionEpoch.invalidate();
     timer?.cancel();
     hubField.dispose();
     tokenField.dispose();
@@ -93,6 +96,9 @@ class _MetricsHomeState extends State<MetricsHome> {
 
   List<Map<String, dynamic>> objects(dynamic value) =>
       (value as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+  bool isCurrentSession(int ticket) =>
+      mounted && hub != null && sessionEpoch.accepts(ticket);
 
   Future<void> connect() async {
     final raw = hubField.text.trim().replaceAll(RegExp(r'/+$'), '');
@@ -114,13 +120,15 @@ class _MetricsHomeState extends State<MetricsHome> {
           message = 'Use an HTTPS hub URL and a valid administrator token.');
       return;
     }
+    final ticket = sessionEpoch.invalidate();
     setState(() {
       hub = raw;
       token = tokenField.text.trim();
       message = null;
+      busy = false;
     });
     await refresh();
-    if (mounted && message == null) {
+    if (isCurrentSession(ticket) && message == null) {
       timer?.cancel();
       timer = Timer.periodic(const Duration(seconds: 20), (_) => refresh());
     }
@@ -128,6 +136,7 @@ class _MetricsHomeState extends State<MetricsHome> {
 
   Future<void> refresh() async {
     if (hub == null || busy) return;
+    final ticket = sessionEpoch.snapshot;
     setState(() => busy = true);
     try {
       final results = await Future.wait([
@@ -135,7 +144,7 @@ class _MetricsHomeState extends State<MetricsHome> {
         getData('/api/v1/alerts'),
       ]);
       final next = objects(results[0]['systems']);
-      if (!mounted) return;
+      if (!isCurrentSession(ticket)) return;
       setState(() {
         machines = next;
         alerts = objects(results[1]['alerts']);
@@ -157,16 +166,17 @@ class _MetricsHomeState extends State<MetricsHome> {
         loadAlertEvents()
       ]);
     } catch (_) {
-      if (mounted) {
+      if (isCurrentSession(ticket)) {
         setState(() => message =
             'Cannot reach the hub. Check your URL, connection and token.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (isCurrentSession(ticket)) setState(() => busy = false);
     }
   }
 
   Future<void> loadHistory() async {
+    final ticket = sessionEpoch.snapshot;
     final id = selected;
     final hours = historyHours;
     if (id == null) {
@@ -176,17 +186,18 @@ class _MetricsHomeState extends State<MetricsHome> {
     try {
       final response = await getData(
           '/api/v1/systems/${Uri.encodeComponent(id)}/history?hours=$hours&points=400');
-      if (mounted && selected == id && historyHours == hours) {
+      if (isCurrentSession(ticket) && selected == id && historyHours == hours) {
         setState(() => samples = objects(response['samples']));
       }
     } catch (_) {
-      if (mounted && selected == id && historyHours == hours) {
+      if (isCurrentSession(ticket) && selected == id && historyHours == hours) {
         setState(() => samples = []);
       }
     }
   }
 
   Future<void> loadContainers() async {
+    final ticket = sessionEpoch.snapshot;
     final id = selected;
     if (id == null) {
       if (mounted) setState(() => containers = []);
@@ -195,15 +206,18 @@ class _MetricsHomeState extends State<MetricsHome> {
     try {
       final response = await getData(
           '/api/v1/systems/${Uri.encodeComponent(id)}/containers');
-      if (mounted && selected == id) {
+      if (isCurrentSession(ticket) && selected == id) {
         setState(() => containers = objects(response['containers']));
       }
     } catch (_) {
-      if (mounted && selected == id) setState(() => containers = []);
+      if (isCurrentSession(ticket) && selected == id) {
+        setState(() => containers = []);
+      }
     }
   }
 
   Future<void> loadNetworkRate() async {
+    final ticket = sessionEpoch.snapshot;
     final id = selected;
     if (id == null) {
       if (mounted) setState(() => networkRate = null);
@@ -213,28 +227,35 @@ class _MetricsHomeState extends State<MetricsHome> {
       final response = await getData(
           '/api/v1/systems/${Uri.encodeComponent(id)}/network-rate');
       final result = Map<String, dynamic>.from(response as Map);
-      if (mounted && selected == id) {
+      if (isCurrentSession(ticket) && selected == id) {
         setState(() => networkRate = result);
       }
     } catch (_) {
-      if (mounted && selected == id) setState(() => networkRate = null);
+      if (isCurrentSession(ticket) && selected == id) {
+        setState(() => networkRate = null);
+      }
     }
   }
 
   Future<void> loadAlertEvents() async {
+    final ticket = sessionEpoch.snapshot;
     try {
       final response = await getData('/api/v1/alert-events?limit=30');
-      if (mounted) setState(() => alertEvents = objects(response['events']));
+      if (isCurrentSession(ticket)) {
+        setState(() => alertEvents = objects(response['events']));
+      }
     } catch (_) {
-      if (mounted) setState(() => alertEvents = []);
+      if (isCurrentSession(ticket)) setState(() => alertEvents = []);
     }
   }
 
   void disconnect() {
+    sessionEpoch.invalidate();
     timer?.cancel();
     setState(() {
       hub = null;
       token = null;
+      busy = false;
       selected = null;
       machines = [];
       alerts = [];

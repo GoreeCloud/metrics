@@ -35,3 +35,4 @@
 | Owner-controlled raw host CSV export with cursor pagination | Synthetic auth, cross-host, spreadsheet-injection and bounds tests | Privacy policy, large export and recovery acceptance |
 | Explicit bounded browser CSV download for a selected host | Stream-bound and token-safe Node tests; TypeScript/Vite build | Real browser download, partial-page UX and privacy acceptance |
 | Native Flutter 6h/24h/7d chart controls and counter-safe network rate cards | Flutter analyzer, pure-Dart and widget tests | Linux/Android live transport, accessibility and physical-device acceptance |
+| Authenticated client session-generation guards (React and Flutter) | Source unit tests; Web build and Flutter analyzer/widgets | Real-browser logout race, Android and Linux session-switch acceptance |

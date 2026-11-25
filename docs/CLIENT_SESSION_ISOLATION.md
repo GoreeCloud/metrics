@@ -1,0 +1,7 @@
+# Session-isolated client requests
+
+Both owner interfaces reject late asynchronous replies after a disconnect or new sign-in, even if the new hub happens to have a node with the same identifier. React's in-memory authentication generation invalidates its previous polling results and any pending user-initiated CSV download; separate poll generations ignore out-of-order responses. The React disconnect action resets visible host, alert, history, chart, download and error state. The polling generation is invalidated when its effect is disposed or the session changes.
+
+The Flutter Linux/Android client increments an in-memory session generation on successful connect, disconnect and widget disposal. Hub snapshots, histories, container details, network-rate replies, and alert transitions check the captured generation before applying their data or error results. A stale refresh cannot restart a polling timer for a new owner session. The client resets its busy state on disconnect to allow clean reconnection.
+
+Credentials stay in process memory, browser redirects are refused, and the change introduces no account service, permission, storage, network endpoint or telemetry disclosure. Synthetic generation tests and app/source contract checks are automated; the protected React build, native analyzer/widgets and Linux/Android builds provide further regression coverage. Real session-switch browser and device acceptance remain necessary prior to any production deployment.
