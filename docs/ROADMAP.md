@@ -9,3 +9,5 @@
 **Phase 4: Ecosystem integration and acceptance.** Confirm GoreeCloud UI visual compliance, approved Identity and GoreeCloud Mesh API contracts, GoreeShield retention controls, Wardveil security boundaries, Linux packaging, Android signing/device tests, controlled rollouts and evidence for release classification.
 
 These phases have no invented completion dates.
+
+**Schema checkpoint (development):** SQLite version 1 baseline and in-place unversioned compatible host/containers table adoption are source-tested. Future versioned data migrations, operator-reviewed backup/recovery and production lifecycle acceptance remain open; see [schema compatibility](SCHEMA_COMPATIBILITY.md).
