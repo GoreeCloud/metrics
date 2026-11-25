@@ -1,0 +1,9 @@
+# Alert worker delivery lease and one-shot safety
+
+The optional notification worker processes up to 25 pending alert events per pass but **claims each event in its own short SQLite immediate transaction just before the corresponding outbound request**. The previous design claimed up to 25 events at the beginning of the pass even though each request could take eight seconds. A 25-request batch could therefore exceed its 60-second claim lease before the final items were sent, allowing another worker to claim and resend those unsent events.
+
+Each claim is now committed before network activity and holds a 60-second lease. Workers re-evaluate the database and current time between deliveries; a second worker can safely deliver a *different* unclaimed event but not one with an active lease. Attempt-count compare-and-set conditions stop an old worker from overwriting the newer claim outcome after an unlikely expired-lease race. Retry limits and bounded delays remain in place. This reduces avoidable duplication but does **not** provide exactly-once delivery: process suspension beyond a lease, crashes after a remote server accepts a message, and recipient behavior can still cause duplicates.
+
+When invoked with `--once`, the operator command now exits **2 if any attempted delivery fails**, **0** if all attempted deliveries succeed or there is no eligible work, and still uses existing error handling for configuration/service failures. No alert worker starts automatically when the hub starts.
+
+An isolated synthetic 12-event test simulates nine seconds per request and a second worker joining after more than 60 seconds, then proves all twelve distinct alerts are delivered once by the test send stubs. Further real Notify/HTTPS acceptance, authorized secret custody, recipient deduplication, operational recovery, monitoring and alert acknowledgment workflows remain outstanding. No production webhook was contacted.
