@@ -40,3 +40,7 @@ A Metrics database with a newer or malformed core schema fails startup rather th
 ### Agent destination and one-shot result
 
 Agent ingestion refuses HTTP redirects so credentials are not forwarded to a newly selected origin, and --once exits nonzero when the hub does not accept the sample. Outbound logs avoid raw URLs, tokens and response content; see [agent delivery safety](AGENT_DELIVERY_SAFETY.md). TLS acceptance and production network tests remain outstanding.
+
+### Explicit browser origins
+
+The optional METRICS_ALLOWED_ORIGINS configuration requires up to 32 exact HTTPS origins (HTTP only for loopback) and refuses wildcard, credentials and malformed URLs at startup. CORS is independent of API bearer authentication; see [origin policy](CORS_POLICY.md). Production proxy and browser acceptance remain open.
