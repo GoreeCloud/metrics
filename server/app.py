@@ -490,6 +490,14 @@ def network_rate(node_id: str):
     if delta <= 0 or delta > 3600:
         result["state"] = "invalid_interval"
         return result
+    # Short counter intervals are not current throughput after the host
+    # stops reporting. Respect the same configured offline window as the
+    # systems overview, rather than showing an old rate as live.
+    age_seconds = int(time.time()) - int(newer["ts"])
+    offline_seconds = AlertRules.from_environment().offline_seconds
+    if age_seconds < -5 or age_seconds > offline_seconds:
+        result["state"] = "invalid_interval"
+        return result
     if (newer["uptime_seconds"] < older["uptime_seconds"]
             or newer["rx_bytes"] < older["rx_bytes"]
             or newer["tx_bytes"] < older["tx_bytes"]):
