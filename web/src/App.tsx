@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, ArrowDown, ArrowUp, Bell, CircleDot, Cpu, HardDrive, LayoutDashboard, LogOut, MemoryStick, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { fetchHostCsv } from './hostExport';
+import { fetchOwnerJson } from './ownerApi';
 import { RequestEpoch } from './requestEpoch';
 
 type Machine = { node_id: string; hostname: string; last_seen: number; online: boolean; cpu: number; memory: number; disk: number; memory_bytes: number; disk_bytes: number; rx_bytes: number; tx_bytes: number; uptime_seconds: number };
@@ -43,9 +44,7 @@ export default function App() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const request = useCallback(async (path: string) => {
-    const result = await fetch(path, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store', redirect: 'error' });
-    if (!result.ok) throw new Error(result.status === 401 ? 'Invalid administrator token' : 'API error (' + result.status + ')');
-    return result.json();
+    return fetchOwnerJson(path, token) as Promise<any>;
   }, [token]);
 
   const refresh = useCallback(async () => {
