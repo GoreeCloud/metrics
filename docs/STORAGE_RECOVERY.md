@@ -20,3 +20,7 @@ Backup uses SQLite's online backup API and does not overwrite destinations. The 
 ## Hub runtime retention configuration
 
 Set `METRICS_RETENTION_DAYS` to an integer from 1 to 365 before starting the hub (default 30). This affects host and container sample purging on **successful ingestion**; it does not schedule background deletion. Use the admin-authenticated `GET /api/v1/config` endpoint to verify the nonsecret active value and alert thresholds. Set a reviewed privacy retention policy before deployment.
+
+## Explicit privacy deletion
+
+Use the dry-run-first forget-node operation to preview a named node's system, history, container, alert state and alert events. Only --apply commits an atomic deletion. It does not revoke the node's ingest token, remove existing backups or cryptographically erase storage. See [privacy deletion](PRIVACY_ERASURE.md) for safe operator instructions and limitations. The retention CLI now covers both host and container histories.
