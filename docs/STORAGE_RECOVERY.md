@@ -24,3 +24,7 @@ Set `METRICS_RETENTION_DAYS` to an integer from 1 to 365 before starting the hub
 ## Explicit privacy deletion
 
 Use the dry-run-first forget-node operation to preview a named node's system, history, container, alert state and alert events. Only --apply commits an atomic deletion. It does not revoke the node's ingest token, remove existing backups or cryptographically erase storage. See [privacy deletion](PRIVACY_ERASURE.md) for safe operator instructions and limitations. The retention CLI now covers both host and container histories.
+
+## Read-only storage readiness
+
+Run the source-owned [redacted storage diagnostics](STORAGE_DIAGNOSTICS.md) against an authorized existing SQLite file for nonmutating schema/index/permission/count checks. A healthy report does not replace backup/restore acceptance, network admission review, or a production readiness assessment.
