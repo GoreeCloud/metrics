@@ -9,7 +9,7 @@ test('network-rate polling uses existing authenticated, no-store redirect-denyin
   assert.match(app, /fetch\(path, \{ headers: \{ Authorization: 'Bearer ' \+ token \}, cache: 'no-store', redirect: 'error' \}\)/);
   assert.match(app, /request\('\/api\/v1\/systems\/' \+ host \+ '\/network-rate'\)/);
   assert.match(app, /setNetworkRate\(null\);/);
-  assert.match(app, /\[selected, request, lastRefresh, token\]/);
+  assert.match(app, /\[selected, request, lastRefresh, historyHours, token\]/);
 });
 
 test('non-OK network rates never display a numeric rate or a misleading zero', () => {

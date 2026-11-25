@@ -39,3 +39,12 @@
 /* Bounded rate cards reuse the product's semantic GoreeCloud UI tokens. */
 .network-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr))}
 .network-card .rate-note{display:block;margin-top:7px;color:var(--soft);font-size:11px;line-height:1.4}
+
+/* Shared host history selector. */
+/* Product-specific history selector, using verified GoreeCloud UI semantic tokens. */
+.history-heading{gap:16px;flex-wrap:wrap}
+.history-periods{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--outline-soft);border-radius:12px;background:var(--tonal)}
+.history-period{min-width:46px;min-height:44px;padding:8px 10px;border:0;border-radius:9px;color:var(--soft);background:transparent;font-weight:650;font-size:13px}
+.history-period:hover{color:var(--text)}
+.history-period.active{background:var(--surface);box-shadow:var(--shadow);color:var(--brand)}
+.history-period:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
