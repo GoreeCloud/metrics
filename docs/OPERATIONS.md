@@ -63,3 +63,5 @@ See [alert rules and opt-in worker](ALERTS.md). The notifier is an operator-mana
 ## Notification worker delivery claims
 
 Event delivery is a bounded best-effort operation. The SQLite alert worker atomically reserves a batch with 60-second claims **before** opening HTTPS connections, limiting duplicate delivery from concurrent worker instances; expired claims can be retried after a crash. Multiple workers are not needed for development, and leases do not guarantee exactly-once delivery. Keep webhook destinations consent-approved and use idempotency at the receiver where available.
+
+For optional one-shot notifications, a nonzero exit now indicates failure to send at least one attempted event. See [worker lease and one-shot safety](ALERT_WORKER_SAFETY.md); no runtime alert sender is installed by these tests.
