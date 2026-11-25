@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, ArrowDown, ArrowUp, Bell, CircleDot, Cpu, HardDrive, LayoutDashboard, LogOut, MemoryStick, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchHostCsv } from './hostExport';
+import { RequestEpoch } from './requestEpoch';
 
 type Machine = { node_id: string; hostname: string; last_seen: number; online: boolean; cpu: number; memory: number; disk: number; memory_bytes: number; disk_bytes: number; rx_bytes: number; tx_bytes: number; uptime_seconds: number };
 type Sample = { ts: number; cpu: number; memory: number; disk: number };
@@ -20,6 +21,8 @@ const size = (bytes = 0) => {
 const pct = (number?: number) => Number.isFinite(number) ? Math.round(number!) + '%' : '—';
 
 export default function App() {
+  const session = useRef(new RequestEpoch());
+  const polling = useRef(new RequestEpoch());
   const [tokenField, setTokenField] = useState('');
   const [token, setToken] = useState('');
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -46,24 +49,35 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     if (!token) return;
+    const sessionTicket = session.current.snapshot();
+    const pollTicket = polling.current.begin();
+    const stillCurrent = () => session.current.accepts(sessionTicket) && polling.current.accepts(pollTicket);
     setLoading(true);
     try {
       const [systemData, alertData] = await Promise.all([request('/api/v1/systems'), request('/api/v1/alerts')]);
+      if (!stillCurrent()) return;
       setMachines(systemData.systems);
       setAlerts(alertData.alerts);
       setSelected(current => current && systemData.systems.some((m: Machine) => m.node_id === current)
         ? current : systemData.systems[0]?.node_id ?? '');
       setLastRefresh(new Date());
       setError('');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Connection failed'); }
-    finally { setLoading(false); }
+    } catch (e) {
+      if (stillCurrent()) setError(e instanceof Error ? e.message : 'Connection failed');
+    } finally {
+      if (stillCurrent()) setLoading(false);
+    }
   }, [request, token]);
 
   useEffect(() => {
     if (!token) return;
     void refresh();
     const interval = window.setInterval(() => { void refresh(); }, 15000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      polling.current.invalidate();
+      session.current.invalidate();
+    };
   }, [refresh, token]);
 
   useEffect(() => {
@@ -104,6 +118,7 @@ export default function App() {
 
   async function downloadCsv() {
     if (!token || !selected || exportBusy) return;
+    const sessionTicket = session.current.snapshot();
     const host = selected;
     const hours = historyHours;
     setExportBusy(true);
@@ -111,6 +126,8 @@ export default function App() {
     setExportFailed(false);
     try {
       const result = await fetchHostCsv(host, token, hours);
+      // Never start a delayed file download after logout or a new sign-in.
+      if (!session.current.accepts(sessionTicket)) return;
       const blobUrl = URL.createObjectURL(result.blob);
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -124,11 +141,33 @@ export default function App() {
         ? 'Downloaded the newest 10,000 samples only. Use the API cursor for older data.'
         : 'CSV download requested for the selected host and period.');
     } catch (error) {
-      setExportFailed(true);
-      setExportNote(error instanceof Error ? error.message : 'CSV export failed');
+      if (session.current.accepts(sessionTicket)) {
+        setExportFailed(true);
+        setExportNote(error instanceof Error ? error.message : 'CSV export failed');
+      }
     } finally {
-      setExportBusy(false);
+      if (session.current.accepts(sessionTicket)) setExportBusy(false);
     }
+  }
+
+  function disconnect() {
+    session.current.invalidate();
+    polling.current.invalidate();
+    setToken('');
+    setTokenField('');
+    setMachines([]);
+    setAlerts([]);
+    setSelected('');
+    setHistory([]);
+    setContainers([]);
+    setNetworkRate(null);
+    setAlertEvents([]);
+    setError('');
+    setLoading(false);
+    setLastRefresh(null);
+    setExportBusy(false);
+    setExportNote('');
+    setExportFailed(false);
   }
 
   if (!token) {
@@ -138,7 +177,14 @@ export default function App() {
         <div className="eyebrow">GOREECLOUD / OBSERVABILITY</div>
         <h1>See every system.<br /><span>Know what matters.</span></h1>
         <p>Sign in to your private Metrics hub. The access token is held in memory only, never saved to browser storage.</p>
-        <form onSubmit={e => { e.preventDefault(); if (tokenField.trim()) setToken(tokenField.trim()); }}>
+        <form onSubmit={e => {
+          e.preventDefault();
+          if (tokenField.trim()) {
+            session.current.invalidate();
+            polling.current.invalidate();
+            setToken(tokenField.trim());
+          }
+        }}>
           <label htmlFor="admin-token">Administrator access token</label>
           <input id="admin-token" type="password" autoComplete="off" value={tokenField}
             onChange={e => setTokenField(e.target.value)} placeholder="Enter your administrator token" required minLength={32} />
@@ -159,7 +205,7 @@ export default function App() {
       </nav>
       <div className="sidebar-bottom">
         <span className="sidebar-status"><CircleDot size={15} /> Private hub</span>
-        <button type="button" className="nav" onClick={() => { setToken(''); setTokenField(''); setMachines([]); setHistory([]); setContainers([]); setNetworkRate(null); setAlertEvents([]); setError(''); }}><LogOut size={18}/> Disconnect</button>
+        <button type="button" className="nav" onClick={disconnect}><LogOut size={18}/> Disconnect</button>
       </div>
     </aside>
     <main className="content">
@@ -173,7 +219,7 @@ export default function App() {
             <p className="subtitle">{view === 'overview' ? 'A clear view of the machines that keep your cloud running.' : 'Current-state threshold indicators and connectivity issues.'}</p></div>
           <span className="scope-pill"><ShieldCheck size={16}/> Private workspace</span>
         </div>
-        {error && <div className="error" role="alert">{error} <button type="button" onClick={() => {setToken(''); setTokenField('');}}>Reconnect</button></div>}
+        {error && <div className="error" role="alert">{error} <button type="button" onClick={disconnect}>Reconnect</button></div>}
         {view === 'alerts' ? <div className="panel alerts-panel">
           <h2>Current indicators <span className="muted">({alerts.length})</span></h2>
           {alerts.length ? alerts.map((a, i) => <div className="alert-row" key={a.node_id + a.metric + i}>
