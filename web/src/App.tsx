@@ -7,6 +7,7 @@ type Sample = { ts: number; cpu: number; memory: number; disk: number };
 type Alert = { node_id: string; metric: string; severity: string; message: string };
 type ContainerSnapshot = { name: string; cpu: number; memory: number; rx_bytes: number; tx_bytes: number; ts: number };
 type AlertTransition = { id: number; node_id: string; metric: string; state: string; message: string; created_ts: number };
+type NetworkRate = { node_id: string; state: 'ok' | 'insufficient_samples' | 'counter_reset' | 'invalid_interval'; latest_ts: number | null; interval_seconds: number | null; rx_bytes_per_second: number | null; tx_bytes_per_second: number | null };
 type View = 'overview' | 'alerts';
 
 const size = (bytes = 0) => {
@@ -25,6 +26,7 @@ export default function App() {
   const [selected, setSelected] = useState('');
   const [history, setHistory] = useState<Sample[]>([]);
   const [containers, setContainers] = useState<ContainerSnapshot[]>([]);
+  const [networkRate, setNetworkRate] = useState<NetworkRate | null>(null);
   const [alertEvents, setAlertEvents] = useState<AlertTransition[]>([]);
   const [view, setView] = useState<View>('overview');
   const [error, setError] = useState('');
@@ -60,8 +62,9 @@ export default function App() {
   }, [refresh, token]);
 
   useEffect(() => {
-    if (!token || !selected) { setHistory([]); setContainers([]); return; }
+    if (!token || !selected) { setHistory([]); setContainers([]); setNetworkRate(null); return; }
     let active = true;
+    setNetworkRate(null);
     const host = encodeURIComponent(selected);
     void request('/api/v1/systems/' + host + '/history?hours=24')
       .then(data => { if (active) setHistory(data.samples); })
@@ -69,6 +72,9 @@ export default function App() {
     void request('/api/v1/systems/' + host + '/containers')
       .then(data => { if (active) setContainers(data.containers); })
       .catch(() => { if (active) setContainers([]); });
+    void request('/api/v1/systems/' + host + '/network-rate')
+      .then(data => { if (active) setNetworkRate(data as NetworkRate); })
+      .catch(() => { if (active) setNetworkRate(null); });
     return () => { active = false; };
   }, [selected, request, lastRefresh, token]);
 
@@ -83,6 +89,12 @@ export default function App() {
 
   const machine = machines.find(m => m.node_id === selected);
   const online = machines.filter(m => m.online).length;
+  const rate = networkRate?.node_id === selected && networkRate.state === 'ok' ? networkRate : null;
+  const rateNote = networkRate?.node_id !== selected ? 'Waiting for a valid interval' :
+    networkRate?.state === 'counter_reset' ? 'Counter reset or host restart' :
+    networkRate?.state === 'invalid_interval' ? 'Invalid or stale interval' :
+    networkRate?.state === 'insufficient_samples' ? 'Waiting for a second reading' :
+    networkRate?.state === 'ok' ? 'Across latest two readings' : 'Rate unavailable';
 
   if (!token) {
     return <main className="login-screen">
@@ -112,7 +124,7 @@ export default function App() {
       </nav>
       <div className="sidebar-bottom">
         <span className="sidebar-status"><CircleDot size={15} /> Private hub</span>
-        <button type="button" className="nav" onClick={() => { setToken(''); setTokenField(''); setMachines([]); setHistory([]); setContainers([]); setAlertEvents([]); setError(''); }}><LogOut size={18}/> Disconnect</button>
+        <button type="button" className="nav" onClick={() => { setToken(''); setTokenField(''); setMachines([]); setHistory([]); setContainers([]); setNetworkRate(null); setAlertEvents([]); setError(''); }}><LogOut size={18}/> Disconnect</button>
       </div>
     </aside>
     <main className="content">
@@ -187,6 +199,8 @@ export default function App() {
               <div className="network-card"><ArrowDown size={20}/><div><span>Received since boot</span><strong>{size(machine.rx_bytes)}</strong></div></div>
               <div className="network-card"><ArrowUp size={20}/><div><span>Sent since boot</span><strong>{size(machine.tx_bytes)}</strong></div></div>
               <div className="network-card"><Activity size={20}/><div><span>System uptime</span><strong>{Math.floor(machine.uptime_seconds / 3600)} hours</strong></div></div>
+              <div className="network-card"><ArrowDown size={20}/><div><span>Received per second</span><strong>{rate?.rx_bytes_per_second == null ? '—' : size(rate.rx_bytes_per_second) + '/s'}</strong><small className="rate-note">{rateNote}</small></div></div>
+              <div className="network-card"><ArrowUp size={20}/><div><span>Sent per second</span><strong>{rate?.tx_bytes_per_second == null ? '—' : size(rate.tx_bytes_per_second) + '/s'}</strong><small className="rate-note">{rateNote}</small></div></div>
             </div>
             <div className="section-heading"><div><h2>Containers <span className="muted">/ Optional</span></h2><p>Read-only snapshots from explicitly enabled Podman or Docker collection.</p></div></div>
             <div className="panel">

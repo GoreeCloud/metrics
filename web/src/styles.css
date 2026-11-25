@@ -35,3 +35,7 @@
 .container-table th:first-child,.container-table td:first-child{text-align:left}
 .container-table thead th{color:var(--soft);font-size:12px;font-weight:650}
 .container-table tbody th{font-weight:650}
+
+/* Bounded rate cards reuse the product's semantic GoreeCloud UI tokens. */
+.network-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr))}
+.network-card .rate-note{display:block;margin-top:7px;color:var(--soft);font-size:11px;line-height:1.4}
