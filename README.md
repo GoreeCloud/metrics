@@ -85,6 +85,7 @@ The separate `python -m server.notifications` process records deduplicated firin
 | POST | /api/v1/ingest | X-Agent-Token of registered node |
 | GET | /api/v1/systems | Admin Bearer token |
 | GET | /api/v1/systems/{node_id}/history?hours=24 | Admin Bearer token |
+| GET | /api/v1/systems/{node_id}/network-rate | Admin Bearer token; derived two-sample RX/TX bytes/sec |
 | GET | /api/v1/systems/{node_id}/containers | Admin Bearer token |
 | GET | /api/v1/config | Admin Bearer token; nonsecret retention and alert settings |
 | GET | /api/v1/alerts | Admin Bearer token |

@@ -460,6 +460,46 @@ def history(node_id: str, hours: int = Query(default=24, ge=1, le=168),
             "samples": [dict(row) for row in reversed(rows)]}
 
 
+@app.get("/api/v1/systems/{node_id}/network-rate",
+         dependencies=[Depends(require_admin)])
+def network_rate(node_id: str):
+    """Authenticated, on-demand byte-per-second rate from two host samples."""
+    if not re.fullmatch(IDENTIFIER, node_id):
+        raise HTTPException(404, "Unknown system")
+    with db() as connection:
+        if connection.execute(
+                "SELECT 1 FROM systems WHERE node_id=?", (node_id,)
+        ).fetchone() is None:
+            raise HTTPException(404, "Unknown system")
+        readings = connection.execute(
+            """SELECT ts,rx_bytes,tx_bytes,uptime_seconds FROM samples
+               WHERE node_id=? ORDER BY id DESC LIMIT 2""",
+            (node_id,)
+        ).fetchall()
+    result = {"node_id": node_id,
+              "state": "insufficient_samples",
+              "latest_ts": readings[0]["ts"] if readings else None,
+              "interval_seconds": None,
+              "rx_bytes_per_second": None,
+              "tx_bytes_per_second": None}
+    if len(readings) < 2:
+        return result
+    newer, older = readings
+    delta = newer["ts"] - older["ts"]
+    result["interval_seconds"] = delta if delta > 0 else None
+    if delta <= 0 or delta > 3600:
+        result["state"] = "invalid_interval"
+        return result
+    if (newer["uptime_seconds"] < older["uptime_seconds"]
+            or newer["rx_bytes"] < older["rx_bytes"]
+            or newer["tx_bytes"] < older["tx_bytes"]):
+        result["state"] = "counter_reset"
+        return result
+    result["state"] = "ok"
+    result["rx_bytes_per_second"] = round((newer["rx_bytes"] - older["rx_bytes"]) / delta, 2)
+    result["tx_bytes_per_second"] = round((newer["tx_bytes"] - older["tx_bytes"]) / delta, 2)
+    return result
+
 @app.get("/api/v1/systems/{node_id}/export.csv", dependencies=[Depends(require_admin)])
 def export_host_csv(node_id: str, hours: int = Query(default=24, ge=1, le=8760),
                     limit: int = Query(default=1000, ge=1, le=10000),
