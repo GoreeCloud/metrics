@@ -201,6 +201,43 @@ if origins:
                        allow_headers=["Authorization"])
 
 
+# ASGI ingestion bodies are bounded *before* FastAPI/Pydantic JSON parsing.
+MAX_INGEST_BYTES = 64 * 1024
+
+
+@app.middleware("http")
+async def ingest_admission(request: Request, call_next):
+    if request.method != "POST" or request.url.path != "/api/v1/ingest":
+        return await call_next(request)
+    # A token cannot authorize an arbitrary node_id. This is a cheap first
+    # gate only; check_agent still enforces the node-specific credential.
+    provided = request.headers.getlist("x-agent-token")
+    supplied = provided[0] if len(provided) == 1 else ""
+    authorized = False
+    for configured in request.app.state.agents.values():
+        active = (configured,) if isinstance(configured, str) else configured
+        for candidate in active:
+            authorized |= hmac.compare_digest(supplied, candidate)
+    if not authorized:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    media = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media != "application/json":
+        return JSONResponse(status_code=415, content={"detail": "application/json required"})
+    values = request.headers.getlist("content-length")
+    if len(values) > 1 or (values and (not values[0].isdigit())):
+        return JSONResponse(status_code=400, content={"detail": "Invalid request size"})
+    if values and int(values[0]) > MAX_INGEST_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "Ingest request too large"})
+    content = bytearray()
+    async for chunk in request.stream():
+        if len(content) + len(chunk) > MAX_INGEST_BYTES:
+            return JSONResponse(status_code=413, content={"detail": "Ingest request too large"})
+        content.extend(chunk)
+    # Starlette's cached request body is replayed to FastAPI's normal parser.
+    request._body = bytes(content)
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
