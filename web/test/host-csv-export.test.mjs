@@ -74,3 +74,38 @@ test('web export stays owner initiated and never writes persistent token storage
   assert.doesNotMatch(app, /localStorage|sessionStorage/);
   assert.match(app, /Older pages require the API cursor/);
 });
+
+test('user cancellation aborts in-flight private CSV stream before a Blob is produced', async () => {
+  const session = new AbortController();
+  let observedAbort = false;
+  const streamFetch = async (_url, options) => {
+    assert.equal(options.signal, session.signal);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('id,node_id\n'));
+        options.signal.addEventListener('abort', () => {
+          observedAbort = true;
+          controller.error(new DOMException('Cancelled by owner', 'AbortError'));
+        }, { once: true });
+      }
+    });
+    return new Response(stream, {
+      headers: { 'content-type': 'text/csv; charset=utf-8' }
+    });
+  };
+  const pending = fetchHostCsv('host-a', 'owner-private-token', 24, streamFetch, session.signal);
+  await Promise.resolve();
+  session.abort();
+  await assert.rejects(pending, error => error?.name === 'AbortError');
+  assert.equal(observedAbort, true);
+});
+
+test('logout and host/period change abort pending exports and suppress stale errors', () => {
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  assert.match(app, /const exportAbort = useRef<AbortController \| null>\(null\)/);
+  assert.match(app, /fetchHostCsv\(host, token, hours, fetch, controller\.signal\)/);
+  assert.match(app, /exportAbort\.current\?\.abort\(\)/);
+  assert.match(app, /\[selected, historyHours\]/);
+  assert.match(app, /if \(!controller\.signal\.aborted && session\.current\.accepts\(sessionTicket\)\)/);
+  assert.match(app, /function disconnect\(\) \{[\s\S]*?exportAbort\.current\?\.abort\(\)/);
+});

@@ -4,7 +4,8 @@ const MAX_CSV_BYTES = 8 * 1024 * 1024;
 export type HostCsvExport = { blob: Blob; partial: boolean };
 
 export async function fetchHostCsv(
-  nodeId: string, token: string, hours: number, fetcher: typeof fetch = fetch
+  nodeId: string, token: string, hours: number, fetcher: typeof fetch = fetch,
+  signal?: AbortSignal
 ): Promise<HostCsvExport> {
   if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(nodeId)) {
     throw new Error('Invalid host identifier');
@@ -16,7 +17,7 @@ export async function fetchHostCsv(
     '/api/v1/systems/' + encodeURIComponent(nodeId) + '/export.csv?hours=' + hours + '&limit=10000',
     {
       headers: { Authorization: 'Bearer ' + token },
-      cache: 'no-store', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer',
+      cache: 'no-store', redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer', signal,
     }
   );
   if (response.redirected) throw new Error('Unexpected export redirect');
