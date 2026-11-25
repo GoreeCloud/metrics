@@ -27,6 +27,9 @@ Report security concerns privately using the repository security reporting capab
 
 An optional, distinct status-only bearer token enables an owner-held minimal GET /v1/status route. The token cannot access private system metrics, agent ingestion or alert events; an unset token disables status responses. The status projection includes only an owner schema identifier, state and UTC observation timestamp; see [status-only source contract](MESH_STATUS_CONTRACT.md). No GoreeCloud Mesh, Identity or Wardveil runtime is implied.
 
+### Early ingest admission
+
+A 64 KiB streamed-body gate rejects unauthenticated, oversized or wrong-content-type ingest requests before JSON/Pydantic parsing. It does not replace node-specific credential checks, edge rate limits or production transport controls; see [ingest boundaries](INGEST_BOUNDARIES.md).
 ### Controlled agent credential rollover
 
 Each node may temporarily permit a maximum of two unique agent bearer tokens during an operator-managed key rotation. Previous single-secret mappings remain valid. Distinct admin and status scopes are required. Rotation requires a controlled restart; see [credential-rotation guide](AGENT_TOKEN_ROTATION.md). No identity provider or automatic key lifecycle is implemented.
