@@ -63,6 +63,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            apps/native/android/gradle/wrapper/gradle-wrapper.properties
+            apps/native/android/settings.gradle
+            apps/native/android/build.gradle
+            apps/native/android/app/build.gradle
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: '3.27.4'
