@@ -69,6 +69,13 @@ def collect(node_id: str):
     return result
 
 
+class RejectIngestRedirects(urllib.request.HTTPRedirectHandler):
+    """Never forward a per-node ingest credential to a redirected origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("Metric ingest redirect refused")
+
+
 def report(hub: str, token: str, sample: dict):
     body = json.dumps(sample, separators=(",", ":")).encode("utf-8")
     request = urllib.request.Request(
@@ -76,12 +83,13 @@ def report(hub: str, token: str, sample: dict):
         headers={"Content-Type": "application/json", "X-Agent-Token": token},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    opener = urllib.request.build_opener(RejectIngestRedirects())
+    with opener.open(request, timeout=10) as response:
         if response.status != 202:
             raise RuntimeError("Unexpected ingest status")
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description="GoreeCloud Metrics host agent")
     parser.add_argument("--once", action="store_true", help="Send one sample, then exit")
     args = parser.parse_args()
@@ -94,16 +102,19 @@ def main():
     while not _STOP:
         try:
             report(hub, token, collect(node_id))
-        except (OSError, RuntimeError, urllib.error.URLError) as exc:
+        except (OSError, RuntimeError, ValueError, urllib.error.URLError) as exc:
             # Deliberately omit request URL, credentials and exception body.
             print(f"Metric send failed ({type(exc).__name__})", file=sys.stderr)
+            if args.once:
+                return 2
         if args.once:
-            break
+            return 0
         for _ in range(30):
             if _STOP:
                 break
             time.sleep(1)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
