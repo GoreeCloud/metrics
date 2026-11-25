@@ -6,7 +6,10 @@ const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 test('network-rate polling uses existing authenticated, no-store redirect-denying API helper', () => {
-  assert.match(app, /fetch\(path, \{ headers: \{ Authorization: 'Bearer ' \+ token \}, cache: 'no-store', redirect: 'error' \}\)/);
+  const transport = readFileSync(new URL('../src/ownerApi.ts', import.meta.url), 'utf8');
+  assert.match(app, /fetchOwnerJson\(path, token\)/);
+  assert.match(transport, /Authorization: 'Bearer ' \+ token/);
+  assert.match(transport, /redirect: 'error'/);
   assert.match(app, /request\('\/api\/v1\/systems\/' \+ host \+ '\/network-rate'\)/);
   assert.match(app, /setNetworkRate\(null\);/);
   assert.match(app, /\[selected, request, lastRefresh, historyHours, token\]/);
