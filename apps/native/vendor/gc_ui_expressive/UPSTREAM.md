@@ -1,7 +1,7 @@
 # GoreeCloud UI Flutter adapter — immutable source attribution
 
 Canonical repository: https://github.com/GoreeCloud/gc-ui
-Pinned upstream commit: `5ed3bf1e697a33ae603f086f782d3928e3758de6`
+Pinned upstream commit: `1c7e6194c9225b91f04177ea1b1521037d172d1c`
 Canonical source path: `flutter/gc_ui_expressive/`
 License: MIT (full `LICENSE` retained alongside this package).
 Imported without modification: `pubspec.yaml`, `lib/goreecloud_ui_expressive.dart`,

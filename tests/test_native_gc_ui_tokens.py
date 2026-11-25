@@ -38,7 +38,7 @@ def test_dart_bridge_is_reproducible_and_canonical_theme_is_consumed():
     assert "GoreeAccent.lagoon" in flutter_app
     assert "GoreeCloudPalette.forAppearance" in theme
     assert "scaffoldBackgroundColor: c.canvas" in theme
-    assert "5ed3bf1e697a33ae603f086f782d3928e3758de6" in provenance
+    assert "1c7e6194c9225b91f04177ea1b1521037d172d1c" in provenance
     assert "Color(0xFF00697A)" in dart
     assert "Color(0xFF8BE7F1)" in dart
     assert "0xFF0D121D" not in flutter_app
