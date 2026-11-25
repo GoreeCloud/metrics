@@ -6,12 +6,46 @@ import 'package:http/http.dart' as http;
 
 void main() => runApp(const MetricsApp());
 
+// Network rates are never inferred from single samples or reset counters.
+String formatNetworkRate(Map<String, dynamic>? reading, String field) {
+  final value = reading?[field];
+  if (reading?['state'] != 'ok' ||
+      value is! num ||
+      !value.isFinite ||
+      value < 0) {
+    return '—';
+  }
+  var amount = value.toDouble();
+  var unit = 0;
+  const units = ['B/s', 'KiB/s', 'MiB/s', 'GiB/s', 'TiB/s'];
+  while (amount >= 1024 && unit < units.length - 1) {
+    amount /= 1024;
+    unit++;
+  }
+  final precision = unit == 0 && amount >= 10 ? 0 : 1;
+  return '${amount.toStringAsFixed(precision)} ${units[unit]}';
+}
+
+String networkRateStatus(Map<String, dynamic>? reading) {
+  switch (reading?['state']) {
+    case 'ok':
+      return 'Computed from consecutive host samples';
+    case 'insufficient_samples':
+      return 'Waiting for another host sample';
+    case 'counter_reset':
+      return 'Host restart or network counter reset';
+    case 'invalid_interval':
+      return 'Invalid or stale sample interval';
+    default:
+      return 'Network rate unavailable';
+  }
+}
+
 class MetricsApp extends StatelessWidget {
   const MetricsApp({super.key});
   @override
   Widget build(BuildContext context) {
-    ThemeData theme(Brightness brightness) =>
-        GoreeCloudFlutterTheme.build(
+    ThemeData theme(Brightness brightness) => GoreeCloudFlutterTheme.build(
           brightness: brightness,
           accent: GoreeAccent.lagoon,
         );
@@ -40,6 +74,8 @@ class _MetricsHomeState extends State<MetricsHome> {
   bool busy = false;
   List<Map<String, dynamic>> machines = [], alerts = [], samples = [];
   List<Map<String, dynamic>> containers = [], alertEvents = [];
+  Map<String, dynamic>? networkRate;
+  int historyHours = 24;
   Timer? timer;
 
   @override
@@ -103,12 +139,23 @@ class _MetricsHomeState extends State<MetricsHome> {
       setState(() {
         machines = next;
         alerts = objects(results[1]['alerts']);
+        final previous = selected;
         selected = next.any((m) => m['node_id'] == selected)
             ? selected
             : (next.isEmpty ? null : next.first['node_id'] as String);
+        if (selected != previous) {
+          samples = [];
+          containers = [];
+          networkRate = null;
+        }
         message = null;
       });
-      await Future.wait([loadHistory(), loadContainers(), loadAlertEvents()]);
+      await Future.wait([
+        loadHistory(),
+        loadContainers(),
+        loadNetworkRate(),
+        loadAlertEvents()
+      ]);
     } catch (_) {
       if (mounted) {
         setState(() => message =
@@ -121,18 +168,21 @@ class _MetricsHomeState extends State<MetricsHome> {
 
   Future<void> loadHistory() async {
     final id = selected;
+    final hours = historyHours;
     if (id == null) {
       if (mounted) setState(() => samples = []);
       return;
     }
     try {
       final response = await getData(
-          '/api/v1/systems/${Uri.encodeComponent(id)}/history?hours=24');
-      if (mounted && selected == id) {
+          '/api/v1/systems/${Uri.encodeComponent(id)}/history?hours=$hours&points=400');
+      if (mounted && selected == id && historyHours == hours) {
         setState(() => samples = objects(response['samples']));
       }
     } catch (_) {
-      if (mounted && selected == id) setState(() => samples = []);
+      if (mounted && selected == id && historyHours == hours) {
+        setState(() => samples = []);
+      }
     }
   }
 
@@ -150,6 +200,24 @@ class _MetricsHomeState extends State<MetricsHome> {
       }
     } catch (_) {
       if (mounted && selected == id) setState(() => containers = []);
+    }
+  }
+
+  Future<void> loadNetworkRate() async {
+    final id = selected;
+    if (id == null) {
+      if (mounted) setState(() => networkRate = null);
+      return;
+    }
+    try {
+      final response = await getData(
+          '/api/v1/systems/${Uri.encodeComponent(id)}/network-rate');
+      final result = Map<String, dynamic>.from(response as Map);
+      if (mounted && selected == id) {
+        setState(() => networkRate = result);
+      }
+    } catch (_) {
+      if (mounted && selected == id) setState(() => networkRate = null);
     }
   }
 
@@ -172,6 +240,8 @@ class _MetricsHomeState extends State<MetricsHome> {
       alerts = [];
       samples = [];
       containers = [];
+      networkRate = null;
+      historyHours = 24;
       alertEvents = [];
       message = null;
       tokenField.clear();
@@ -270,6 +340,8 @@ class _MetricsHomeState extends State<MetricsHome> {
   Widget dashboard() {
     final matches = machines.where((m) => m['node_id'] == selected).toList();
     final current = matches.isEmpty ? null : matches.first;
+    final currentRate =
+        networkRate?['node_id'] == selected ? networkRate : null;
     final online = machines.where((m) => m['online'] == true).length;
     return RefreshIndicator(
       onRefresh: refresh,
@@ -300,15 +372,39 @@ class _MetricsHomeState extends State<MetricsHome> {
                   (m['online'] == true ? ' · Online' : ' · Offline')),
               trailing: Text('${number(m, 'cpu').toStringAsFixed(0)}% CPU'),
               onTap: () {
-                setState(() => selected = m['node_id'] as String);
+                setState(() {
+                  selected = m['node_id'] as String;
+                  samples = [];
+                  containers = [];
+                  networkRate = null;
+                });
                 loadHistory();
                 loadContainers();
+                loadNetworkRate();
               },
             ))),
         if (current != null) ...[
           const SizedBox(height: 22),
-          Text('Host details · last 24 hours',
+          Text(
+              'Host details · last ${historyHours == 168 ? '7 days' : '$historyHours hours'}',
               style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 10),
+          SegmentedButton<int>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 6, label: Text('6h')),
+              ButtonSegment(value: 24, label: Text('24h')),
+              ButtonSegment(value: 168, label: Text('7d')),
+            ],
+            selected: {historyHours},
+            onSelectionChanged: (values) {
+              setState(() {
+                historyHours = values.first;
+                samples = [];
+              });
+              loadHistory();
+            },
+          ),
           const SizedBox(height: 10),
           Card(
               child: Padding(
@@ -329,6 +425,26 @@ class _MetricsHomeState extends State<MetricsHome> {
                     const Text('CPU utilization history · 0–100%',
                         style: TextStyle(fontSize: 12)),
                   ]))),
+          const SizedBox(height: 22),
+          Text('Network transfer rates',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Card(
+              child: Column(children: [
+            ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('Received per second'),
+                subtitle: Text(networkRateStatus(currentRate)),
+                trailing: Text(
+                    formatNetworkRate(currentRate, 'rx_bytes_per_second'))),
+            const Divider(height: 1),
+            ListTile(
+                leading: const Icon(Icons.upload_outlined),
+                title: const Text('Sent per second'),
+                subtitle: Text(networkRateStatus(currentRate)),
+                trailing: Text(
+                    formatNetworkRate(currentRate, 'tx_bytes_per_second'))),
+          ])),
           const SizedBox(height: 22),
           Text('Container snapshots',
               style: Theme.of(context).textTheme.titleLarge),
