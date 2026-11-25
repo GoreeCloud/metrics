@@ -6,6 +6,8 @@ No engine APIs are contacted unless METRICS_CONTAINER_PROVIDER is explicitly set
 from __future__ import annotations
 
 import json
+import selectors
+import time
 import math
 import os
 import re
@@ -77,6 +79,47 @@ def parse_stats(raw: str) -> list[dict[str, object]]:
     return result
 
 
+def bounded_provider_output(command: list[str]) -> bytes:
+    """Linux-only, no shell; enforce output bytes and runtime while reading."""
+    started = time.monotonic()
+    process = subprocess.Popen(command, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, shell=False)
+    data = bytearray()
+    try:
+        assert process.stdout is not None
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                remaining = 6 - (time.monotonic() - started)
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, 6)
+                events = selector.select(timeout=remaining)
+                if not events:
+                    raise subprocess.TimeoutExpired(command, 6)
+                for key, _ in events:
+                    chunk = os.read(key.fileobj.fileno(),
+                                    min(16_384, MAX_BYTES + 1 - len(data)))
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        break
+                    data.extend(chunk)
+                    if len(data) > MAX_BYTES:
+                        raise ValueError("Container stats output exceeds safety bound")
+        remaining = 6 - (time.monotonic() - started)
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, 6)
+        code = process.wait(timeout=remaining)
+        if code != 0:
+            raise subprocess.CalledProcessError(code, command)
+        return bytes(data)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=2)
+        if process.stdout is not None:
+            process.stdout.close()
+
+
 def collect_containers() -> list[dict[str, object]]:
     provider = os.environ.get("METRICS_CONTAINER_PROVIDER", "").strip().lower()
     if not provider:
@@ -89,7 +132,5 @@ def collect_containers() -> list[dict[str, object]]:
     command = ([executable, "stats", "--no-stream", "--format", "json"]
                if provider == "podman" else
                [executable, "stats", "--no-stream", "--format", "{{json .}}"])
-    result = subprocess.run(command, capture_output=True, timeout=6, check=True)
-    if len(result.stdout) > MAX_BYTES:
-        raise ValueError("Container stats output exceeds safety bound")
-    return parse_stats(result.stdout.decode("utf-8", errors="replace"))
+    raw = bounded_provider_output(command)
+    return parse_stats(raw.decode("utf-8", errors="replace"))

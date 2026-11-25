@@ -24,4 +24,5 @@
 | Optional status-only bearer scope for future Mesh use | Source implemented; fail-closed tests | Real Mesh admission, Identity, policy and transport acceptance |
 | Pre-parser authenticated 64 KiB ingest body limit | Implemented with synthetic admission tests | Trusted edge connection/capacity controls and production load acceptance |
 | Two-key per-node agent token rollover | Source implemented, backward compatible, local fail-closed tests | Authorized service restart, key custody and real agent migration |
+| Size- and time-bounded opt-in container CLI | Source implemented and tested with synthetic processes | Real Podman/Docker compatibility, permissions and running-container tests |
 | SQLite schema version 1 and fail-closed legacy compatibility | Fresh/legacy/future synthetic migration tests | Approved future migration framework, production rehearsals and rollback |
