@@ -30,6 +30,9 @@ An optional, distinct status-only bearer token enables an owner-held minimal GET
 ### Early ingest admission
 
 A 64 KiB streamed-body gate rejects unauthenticated, oversized or wrong-content-type ingest requests before JSON/Pydantic parsing. It does not replace node-specific credential checks, edge rate limits or production transport controls; see [ingest boundaries](INGEST_BOUNDARIES.md).
+### Controlled agent credential rollover
+
+Each node may temporarily permit a maximum of two unique agent bearer tokens during an operator-managed key rotation. Previous single-secret mappings remain valid. Distinct admin and status scopes are required. Rotation requires a controlled restart; see [credential-rotation guide](AGENT_TOKEN_ROTATION.md). No identity provider or automatic key lifecycle is implemented.
 ### Schema version compatibility
 
 A Metrics database with a newer or malformed core schema fails startup rather than silently changing records; the documented version 1 baseline preserves compatible old host samples. A source-tested schema marker does not replace verified production migrations or backup/rollback acceptance.
