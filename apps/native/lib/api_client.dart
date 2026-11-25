@@ -1,5 +1,5 @@
 // Strict client for the authenticated, owner-held GoreeCloud Metrics API.
-///
+//
 // The OS TLS verifier owns remote certificate identity. Never follow an
 // HTTP(S) redirect with a privileged bearer credential.
 import 'dart:convert';
