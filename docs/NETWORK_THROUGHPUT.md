@@ -1,0 +1,9 @@
+# Privacy-aware network throughput derived from host counters
+
+GoreeCloud Metrics offers an **admin-authenticated**, read-only GET /api/v1/systems/{node_id}/network-rate endpoint. It derives received and transmitted bytes per second from the two most recent host samples, using the existing agent-provided cumulative byte counters and server-controlled sample timestamps. No extra agent permissions, polling, third-party telemetry, system commands or database migrations are introduced.
+
+The response contains only node_id, latest_ts, state, interval_seconds, rx_bytes_per_second, and tx_bytes_per_second. A valid pair of samples produces state ok and numeric rates. Fewer than two samples produces insufficient_samples with null rates. A nonpositive interval or gap greater than 3600 seconds yields invalid_interval. Counter decreases or system uptime decreasing between snapshots yield counter_reset, with null rates rather than misleading negative or inflated throughput.
+
+This data is **host-wide interface aggregate traffic** reported by the optional first-party agent, not per-network-interface activity, audited billing bytes, a measurement of current link capacity, or actual application-level throughput. The rate summarizes the interval between the two samples, not a continuously measured instantaneous signal. Server-side authorization still prohibits agent/status-only credentials from reading it.
+
+Synthetic tests cover 30-second samples with expected rates, cross-host scope, missing samples, unauthorized requests, invalid node IDs, counter reset/reboot and stale/invalid sample intervals. Production acceptance requires actual host counters, network interface exclusions, sleep/wake and throughput verification. No live host measurement or new device access was performed.
