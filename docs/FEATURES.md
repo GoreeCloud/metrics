@@ -9,17 +9,17 @@
 | Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | End-to-end authorized delivery and service acceptance |
 | Authenticated Prometheus text format | Implemented | Downstream integration |
 | React systems, trends and current alerts | Implemented | Browser and accessibility tests |
-| React container snapshots and alert-transition history panels | Implemented in client source; backend API merge required | End-to-end UI/API integration testing |
-| Flutter Linux client | Implemented; CI bundle artifact configured | Build verification, desktop runtime, installer |
+| React container snapshots and alert-transition history panels | Backend and web implemented | End-to-end browser and accessibility acceptance |
+| Flutter Linux client | CI bundle and development Debian preview installer; Xvfb startup smoke passed | Interactive usability, installation, signed release and recovery |
 | Native container snapshot / alert-transition views | Implemented in Flutter source | API integration and physical-device acceptance |
-| Flutter Android client | Implemented; CI debug APK artifact configured | Verify artifact, signing and physical-device test |
+| Flutter Android client | CI debug APK inspected; build/ABI metadata and debug signature verified | Physical-device install and release signing |
 | Docker and Podman read-only container snapshots | Implemented, disabled by default | Real running-container validation and explicit Docker permission review |
 | Persistent alert transition journal and opt-in HTTPS worker | Implemented with synthetic tests | Authorized real delivery and service acceptance |
 | GoreeCloud Notify topic-publish adapter | Implemented and synthetically tested | Real HTTPS service auth, delivery and privacy acceptance |
 | In-app alert editor / mobile push delivery | Not implemented | Privacy and delivery review |
 | Centralized Identity, Mesh and Wardveil APIs | Not implemented | Verified service contracts |
 | SQLite backup and isolated restore-rehearsal CLI | Implemented with tests | Independent production recovery acceptance |
-| Production deployment and restore rehearsal | Not implemented | Operations acceptance |
+| Production deployment and restore rehearsal | Isolated synthetic online SQLite backup and restore verified; no production deployment | Production operations acceptance and recovery policy |
 | Native Flutter GoreeCloud UI Lagoon semantic tokens | Implemented from verified immutable alpha snapshot | Founder visual review, device accessibility and full native component acceptance |
 | Optional status-only bearer scope for future Mesh use | Source implemented; fail-closed tests | Real Mesh admission, Identity, policy and transport acceptance |
 | Pre-parser authenticated 64 KiB ingest body limit | Implemented with synthetic admission tests | Trusted edge connection/capacity controls and production load acceptance |
@@ -30,4 +30,5 @@
 | Opt-in node data deletion and full sample retention CLI | Synthetic isolated SQLite preview/apply tests | GoreeShield consent/backup policy and production acceptance |
 | Bounded full-window aggregate history and 24–1000 point resolution | SQLite buckets; 8,000-row synthetic regression tests | Realistic scale/load, charts and long-window acceptance |
 | Web history time-window selector (6h, 24h, 7d) | Source and semantic-control contract tests | Browser UX, accessibility and visual review |
+| Redacted, read-only SQLite health CLI | Source and synthetic DB integrity/index/permission tests | Authorized operational acceptance and private log custody |
 | Owner-controlled raw host CSV export with cursor pagination | Synthetic auth, cross-host, spreadsheet-injection and bounds tests | Privacy policy, large export and recovery acceptance |
