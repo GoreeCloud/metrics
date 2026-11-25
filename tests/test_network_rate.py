@@ -86,3 +86,35 @@ def test_network_rate_refuses_stale_interval(monkeypatch, tmp_path):
         assert r.status_code == 200
         assert r.json()["state"] == "invalid_interval"
         assert r.json()["rx_bytes_per_second"] is None
+
+
+def test_network_rate_rejects_old_samples_even_when_interval_is_short(monkeypatch, tmp_path):
+    bearer = configure(monkeypatch, tmp_path)
+    t = int(time.time())
+    with TestClient(app) as client:
+        with db() as conn:
+            conn.execute("INSERT INTO systems VALUES(?,?,?,?)",
+                         ("node-a", "Synthetic A", t - 7200, t - 3600))
+            insert(conn, "node-a", t - 3600, 1000, 1000, 1)
+            insert(conn, "node-a", t - 3570, 10000, 10000, 31)
+        reply = client.get("/api/v1/systems/node-a/network-rate", headers=bearer)
+        assert reply.status_code == 200
+        assert reply.json()["state"] == "invalid_interval"
+        assert reply.json()["interval_seconds"] == 30
+        assert reply.json()["rx_bytes_per_second"] is None
+        assert reply.json()["tx_bytes_per_second"] is None
+
+
+def test_network_rate_rejects_future_counter_timestamps(monkeypatch, tmp_path):
+    bearer = configure(monkeypatch, tmp_path)
+    t = int(time.time())
+    with TestClient(app) as client:
+        with db() as conn:
+            conn.execute("INSERT INTO systems VALUES(?,?,?,?)",
+                         ("node-a", "Synthetic A", t, t))
+            insert(conn, "node-a", t + 600, 1000, 1000, 1)
+            insert(conn, "node-a", t + 630, 2000, 2000, 31)
+        reply = client.get("/api/v1/systems/node-a/network-rate", headers=bearer)
+        assert reply.status_code == 200
+        assert reply.json()["state"] == "invalid_interval"
+        assert reply.json()["rx_bytes_per_second"] is None
