@@ -24,6 +24,7 @@ export default function App() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selected, setSelected] = useState('');
   const [history, setHistory] = useState<Sample[]>([]);
+  const [historyHours, setHistoryHours] = useState<6 | 24 | 168>(24);
   const [containers, setContainers] = useState<ContainerSnapshot[]>([]);
   const [alertEvents, setAlertEvents] = useState<AlertTransition[]>([]);
   const [view, setView] = useState<View>('overview');
@@ -62,15 +63,16 @@ export default function App() {
   useEffect(() => {
     if (!token || !selected) { setHistory([]); setContainers([]); return; }
     let active = true;
+    setHistory([]);
     const host = encodeURIComponent(selected);
-    void request('/api/v1/systems/' + host + '/history?hours=24')
+    void request('/api/v1/systems/' + host + '/history?hours=' + historyHours + '&points=400')
       .then(data => { if (active) setHistory(data.samples); })
       .catch(() => { if (active) setHistory([]); });
     void request('/api/v1/systems/' + host + '/containers')
       .then(data => { if (active) setContainers(data.containers); })
       .catch(() => { if (active) setContainers([]); });
     return () => { active = false; };
-  }, [selected, request, lastRefresh, token]);
+  }, [selected, request, lastRefresh, historyHours, token]);
 
   useEffect(() => {
     if (!token || view !== 'alerts') return;
@@ -158,14 +160,22 @@ export default function App() {
             {machines.length === 0 && <div className="empty machine-empty"><Server size={36}/><h3>No hosts connected</h3><p>Configure the agent token and run the agent on a Linux host to start reporting.</p></div>}
           </div>
           {machine && <div className="details">
-            <div className="section-heading"><div><h2>{machine.hostname} <span className="muted">/ Last 24 hours</span></h2><p>CPU, memory and disk utilization over time</p></div></div>
+            <div className="section-heading history-heading"><div><h2>{machine.hostname} <span className="muted">/ Last {historyHours === 168 ? '7 days' : historyHours + ' hours'}</span></h2><p>CPU, memory and disk utilization over the selected interval</p></div>
+              <div className="history-periods" role="group" aria-label="History time window">
+                {([6, 24, 168] as const).map(hours =>
+                  <button key={hours} type="button" aria-pressed={historyHours === hours}
+                    className={'history-period' + (historyHours === hours ? ' active' : '')}
+                    onClick={() => setHistoryHours(hours)}>{hours === 168 ? '7d' : hours + 'h'}</button>
+                )}
+              </div>
+            </div>
             <div className="panel chart-panel">
               <div className="metric-strip">
                 <span><Cpu size={18}/> CPU <b>{pct(machine.cpu)}</b></span>
                 <span><MemoryStick size={18}/> Memory <b>{pct(machine.memory)}</b></span>
                 <span><HardDrive size={18}/> Disk <b>{pct(machine.disk)}</b></span>
               </div>
-              {history.length ? <div className="chart" aria-label="24 hour time series chart">
+              {history.length ? <div className="chart" aria-label={'Time series chart, last ' + historyHours + ' hours'}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={history}>
                     <defs>

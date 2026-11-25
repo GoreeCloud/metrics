@@ -35,3 +35,11 @@
 .container-table th:first-child,.container-table td:first-child{text-align:left}
 .container-table thead th{color:var(--soft);font-size:12px;font-weight:650}
 .container-table tbody th{font-weight:650}
+
+/* Product-specific history selector, using verified GoreeCloud UI semantic tokens. */
+.history-heading{gap:16px;flex-wrap:wrap}
+.history-periods{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid var(--outline-soft);border-radius:12px;background:var(--tonal)}
+.history-period{min-width:46px;min-height:44px;padding:8px 10px;border:0;border-radius:9px;color:var(--soft);background:transparent;font-weight:650;font-size:13px}
+.history-period:hover{color:var(--text)}
+.history-period.active{background:var(--surface);box-shadow:var(--shadow);color:var(--brand)}
+.history-period:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
