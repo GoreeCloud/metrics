@@ -14,3 +14,7 @@ python -m server.storage_cli --database /path/to/authorized-copy.sqlite3 verify
 ~~~
 
 **Verified:** synthetic fresh-database, legacy preservation, future-version denial and incomplete-schema denial unit tests. **Outstanding:** future versioned migration framework, production upgrade/rollback rehearsals, concurrent writer/backup acceptance and disaster recovery sign-off. No production SQLite file was modified.
+
+**Existing-file identity checks:** Hub initialization now refuses a database that contains unrelated tables without the complete host/sample core, a container-only orphan layout, or an already-versioned v1 database with missing core/container tables. The check occurs before switching SQLite to WAL mode; opening an incompatible database for inspection does not intentionally convert its journaling mode. An empty new database and complete legacy unversioned core remain supported. Recovery requires a verified owner backup, not an automatic destructive rebuild.
+
+The runtime database path itself must not be a symbolic link, including a broken symlink; the hub refuses this configuration rather than following a redirect to an unrelated file. This aligns with the read-only storage CLI's existing path safeguard. Directory permissions and authenticated local ownership remain the operator's responsibility.

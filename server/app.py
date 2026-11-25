@@ -110,6 +110,10 @@ def configured_status_token(admin: str, agents: dict[str, tuple[str, ...]]) -> s
 @contextmanager
 def db() -> Iterator[sqlite3.Connection]:
     path = Path(os.environ.get("METRICS_DB_PATH", "./data/metrics.sqlite3"))
+    # Match the storage CLI's no-symlink boundary. An operator-configured
+    # path must not redirect the hub's privileged SQLite writes to another file.
+    if path.is_symlink():
+        raise OSError("Metrics database file must not be a symlink")
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fresh = not path.exists()
     connection = sqlite3.connect(path, timeout=10)
@@ -130,7 +134,7 @@ def db() -> Iterator[sqlite3.Connection]:
 
 def init_db() -> None:
     with db() as connection:
-        connection.execute("PRAGMA journal_mode=WAL")
+        # Inspect version/identity without first mutating SQLite journal mode.
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION or version < 0:
             raise RuntimeError("Metrics SQLite schema is newer or unsupported; refuse to modify")
@@ -149,6 +153,16 @@ def init_db() -> None:
         # must restore a known-good backup or perform a reviewed migration.
         if bool("systems" in existing) != bool("samples" in existing):
             raise RuntimeError("Incomplete Metrics core schema; manual recovery required")
+        core = {"systems", "samples"}
+        if "container_samples" in existing and not core.issubset(existing):
+            raise RuntimeError("Incomplete Metrics container schema; manual recovery required")
+        # Never silently co-opt an unrelated database, nor recreate missing
+        # core tables in a database already marked as Metrics schema v1.
+        user_tables = existing - {"sqlite_sequence"}
+        if not core.issubset(existing) and user_tables:
+            raise RuntimeError("Unrecognized existing database; refuse to modify")
+        if version == SCHEMA_VERSION and not set(expected).issubset(existing):
+            raise RuntimeError("Incomplete versioned Metrics schema; manual recovery required")
         for table, required_columns in expected.items():
             if table in existing:
                 actual = {row[1] for row in connection.execute(
@@ -156,6 +170,7 @@ def init_db() -> None:
                 )}
                 if not required_columns.issubset(actual):
                     raise RuntimeError("Unsupported Metrics SQLite table layout")
+        connection.execute("PRAGMA journal_mode=WAL")
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS systems (
                 node_id TEXT PRIMARY KEY,
