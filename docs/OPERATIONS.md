@@ -59,3 +59,7 @@ A consistent SQLite backup requires using SQLite's online backup API or stopping
 ## Alerts and notifications
 
 See [alert rules and opt-in worker](ALERTS.md). The notifier is an operator-managed process and is disabled unless started. The sample \`deploy/systemd/metrics-notifier.service\` requires an authorized non-root metrics account, an existing owner-controlled hub environment file and matching writable SQLite storage. Enabling outbound webhook delivery is an additional explicit security/privacy decision; it is not a verified GoreeCloud Notify integration.
+
+## Notification worker delivery claims
+
+Event delivery is a bounded best-effort operation. The SQLite alert worker atomically reserves a batch with 60-second claims **before** opening HTTPS connections, limiting duplicate delivery from concurrent worker instances; expired claims can be retried after a crash. Multiple workers are not needed for development, and leases do not guarantee exactly-once delivery. Keep webhook destinations consent-approved and use idempotency at the receiver where available.

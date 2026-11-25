@@ -17,7 +17,7 @@ METRICS_WEBHOOK_BEARER=OPTIONAL_SECRET
 python -m server.notifications --once
 ~~~
 
-A webhook may disclose a node ID and active threshold to its recipient. **GoreeShield consent and destination privacy review are required before enabling one.** Requests use POST JSON, reject redirects, a bounded timeout, up to five retry attempts and a bounded exponential delay. Event delivery is at least once; duplicates can occur after a crash. The worker records up to 30 days of transitions. Actual integration with GoreeCloud Notify has *not* been verified.
+A webhook may disclose a node ID and active threshold to its recipient. **GoreeShield consent and destination privacy review are required before enabling one.** Requests use POST JSON, reject redirects, a bounded timeout, up to five claimed attempts and a bounded exponential delay. A SQLite write-locked claim reserves each pending event before outbound HTTP for 60 seconds, so concurrently running workers cannot immediately send the same event. A crashed worker's claim expires, but exhausted attempts are not retried automatically. Delivery is best-effort with bounded retries; duplicates can occur after a crash or lease expiry. A successful send is not a guaranteed end-user notification. The worker records up to 30 days of transitions. Actual integration with GoreeCloud Notify has *not* been verified.
 
 Current limitations: no graphical threshold editor, incident acknowledgment, rule quiet hours, alert suppression, notification history UI or multiuser Identity auth. The worker is not automatically installed, deployed or running.
 
