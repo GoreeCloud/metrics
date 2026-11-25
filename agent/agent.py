@@ -6,6 +6,7 @@ import json
 import os
 import re
 import signal
+import subprocess
 import socket
 import sys
 import time
@@ -62,7 +63,7 @@ def collect(node_id: str):
     }
     try:
         result["containers"] = collect_containers()
-    except (OSError, ValueError, TimeoutError) as exc:
+    except (OSError, ValueError, TimeoutError, subprocess.SubprocessError) as exc:
         # Container collection is opt-in and must never block host telemetry.
         print(f"Container stats unavailable ({type(exc).__name__})", file=sys.stderr)
     return result
