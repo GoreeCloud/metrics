@@ -36,3 +36,7 @@ Each node may temporarily permit a maximum of two unique agent bearer tokens dur
 ### Schema version compatibility
 
 A Metrics database with a newer or malformed core schema fails startup rather than silently changing records; the documented version 1 baseline preserves compatible old host samples. A source-tested schema marker does not replace verified production migrations or backup/rollback acceptance.
+
+### Agent destination and one-shot result
+
+Agent ingestion refuses HTTP redirects so credentials are not forwarded to a newly selected origin, and --once exits nonzero when the hub does not accept the sample. Outbound logs avoid raw URLs, tokens and response content; see [agent delivery safety](AGENT_DELIVERY_SAFETY.md). TLS acceptance and production network tests remain outstanding.
